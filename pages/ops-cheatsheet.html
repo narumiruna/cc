@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>操作速查表 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="17">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>操作速查表：Command / Tool 用途與風險</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>本頁依 <code>src/commands.ts</code> 與 <code>src/tools.ts</code> 彙整成操作手冊格式：每個項目一行用途 + 風險等級。</p>
+      <nav class="top-nav" aria-label="主要導覽"></nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#risk">風險分級規則</a>
+        <a href="#commands">Commands 速查</a>
+        <a href="#tools">Tools 速查</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="risk">
+        <h2>風險分級規則（先看這段）</h2>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>等級</th>
+              <th>判定標準</th>
+              <th>操作前建議</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>低</td><td>查詢、顯示、介面偏好切換，不改動 repo/系統狀態</td><td>可直接用</td></tr>
+            <tr><td>中</td><td>會變更 session、設定、外部整合狀態，但可逆或影響可控</td><td>先確認當前任務上下文</td></tr>
+            <tr><td>高</td><td>會改動檔案、git 歷史、帳號/權限、遠端觸發或自動化</td><td>先做 diff/備份，再執行</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="commands">
+        <h2>Commands 速查（依 <code>COMMANDS + gated + internal</code>）</h2>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>一行用途</th>
+              <th>風險</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>/help</td><td>顯示可用指令與說明</td><td>低</td></tr>
+            <tr><td>/status</td><td>查看目前執行狀態摘要</td><td>低</td></tr>
+            <tr><td>/stats</td><td>查看使用統計與活動</td><td>低</td></tr>
+            <tr><td>/usage</td><td>查看方案用量與限制</td><td>低</td></tr>
+            <tr><td>/cost</td><td>查看當前 session 成本與耗時</td><td>低</td></tr>
+            <tr><td>/context</td><td>查看 context 使用量</td><td>低</td></tr>
+            <tr><td>/files</td><td>列出目前已進 context 的檔案</td><td>低</td></tr>
+            <tr><td>/diff</td><td>查看未提交變更與回合差異</td><td>低</td></tr>
+            <tr><td>/release-notes</td><td>查看版本更新資訊</td><td>低</td></tr>
+            <tr><td>/pr-comments</td><td>讀取 GitHub PR 留言</td><td>低</td></tr>
+            <tr><td>/insights</td><td>分析 session 並產生報告</td><td>低</td></tr>
+            <tr><td>/btw</td><td>顯示補充提示與導引內容</td><td>低</td></tr>
+            <tr><td>/model</td><td>調整或查詢模型設定</td><td>中</td></tr>
+            <tr><td>/effort</td><td>設定模型思考強度</td><td>中</td></tr>
+            <tr><td>/theme</td><td>切換 CLI 主題</td><td>低</td></tr>
+            <tr><td>/color</td><td>設定本回 prompt bar 顏色</td><td>低</td></tr>
+            <tr><td>/vim</td><td>切換 Vim / Normal 編輯模式</td><td>中</td></tr>
+            <tr><td>/config</td><td>開啟設定面板</td><td>中</td></tr>
+            <tr><td>/output-style</td><td>舊版輸出樣式設定入口</td><td>低</td></tr>
+            <tr><td>/permissions</td><td>管理工具 allow/deny 規則</td><td>高</td></tr>
+            <tr><td>/privacy-settings</td><td>查看與調整隱私設定</td><td>高</td></tr>
+            <tr><td>/rate-limit-options</td><td>達限時選擇後續方案</td><td>中</td></tr>
+            <tr><td>/extra-usage</td><td>設定超額用量行為</td><td>高</td></tr>
+            <tr><td>/upgrade</td><td>升級方案以提高額度</td><td>高</td></tr>
+            <tr><td>/add-dir</td><td>新增工作目錄</td><td>中</td></tr>
+            <tr><td>/init</td><td>初始化專案設定/檔案</td><td>高</td></tr>
+            <tr><td>/memory</td><td>編輯記憶檔（CLAUDE.md 等）</td><td>高</td></tr>
+            <tr><td>/rename</td><td>重新命名目前對話</td><td>低</td></tr>
+            <tr><td>/tag</td><td>切換目前 session 的可搜尋標籤</td><td>低</td></tr>
+            <tr><td>/resume</td><td>恢復先前對話</td><td>中</td></tr>
+            <tr><td>/session</td><td>顯示遠端 session URL/QR code</td><td>中</td></tr>
+            <tr><td>/clear</td><td>清空對話歷史並釋放 context</td><td>高</td></tr>
+            <tr><td>/compact</td><td>壓縮對話內容以降低 token 壓力</td><td>中</td></tr>
+            <tr><td>/rewind</td><td>回復到先前對話或程式狀態</td><td>高</td></tr>
+            <tr><td>/branch</td><td>從目前點分支出新對話線</td><td>中</td></tr>
+            <tr><td>/plan</td><td>啟用或查看 plan mode</td><td>中</td></tr>
+            <tr><td>/fast</td><td>切換較快執行偏好</td><td>中</td></tr>
+            <tr><td>/passes</td><td>設定驗證迭代次數</td><td>中</td></tr>
+            <tr><td>/tasks</td><td>管理背景任務</td><td>中</td></tr>
+            <tr><td>/agents</td><td>管理 agent 設定</td><td>中</td></tr>
+            <tr><td>/skills</td><td>列出可用 skills</td><td>低</td></tr>
+            <tr><td>/plugin</td><td>管理外掛能力</td><td>高</td></tr>
+            <tr><td>/reload-plugins</td><td>套用外掛待生效變更</td><td>中</td></tr>
+            <tr><td>/mcp</td><td>管理 MCP servers</td><td>高</td></tr>
+            <tr><td>/hooks</td><td>查看 hook 組態</td><td>中</td></tr>
+            <tr><td>/terminal-setup</td><td>設定終端整合</td><td>中</td></tr>
+            <tr><td>/ide</td><td>管理 IDE 整合與狀態</td><td>中</td></tr>
+            <tr><td>/desktop</td><td>把目前 session 轉到 Claude Desktop</td><td>中</td></tr>
+            <tr><td>/mobile</td><td>顯示下載 App 的 QR code</td><td>低</td></tr>
+            <tr><td>/install-github-app</td><td>安裝 Claude GitHub App</td><td>高</td></tr>
+            <tr><td>/install-slack-app</td><td>安裝 Claude Slack App</td><td>高</td></tr>
+            <tr><td>/review</td><td>啟動 PR review 流程</td><td>中</td></tr>
+            <tr><td>/ultrareview</td><td>執行更深入 branch 問題檢查</td><td>中</td></tr>
+            <tr><td>/security-review</td><td>執行安全向度審查</td><td>高</td></tr>
+            <tr><td>/doctor</td><td>診斷本機安裝與設定</td><td>低</td></tr>
+            <tr><td>/feedback</td><td>提交產品回饋</td><td>低</td></tr>
+            <tr><td>/export</td><td>匯出對話到檔案或剪貼簿</td><td>中</td></tr>
+            <tr><td>/copy</td><td>複製內容到剪貼簿</td><td>低</td></tr>
+            <tr><td>/think-back</td><td>查看年度回顧內容</td><td>低</td></tr>
+            <tr><td>/thinkback-play</td><td>播放 thinkback 動畫</td><td>低</td></tr>
+            <tr><td>/statusline</td><td>調整狀態列顯示</td><td>低</td></tr>
+            <tr><td>/stickers</td><td>貼紙申請入口</td><td>低</td></tr>
+            <tr><td>/sandbox</td><td>切換沙箱相關行為</td><td>高</td></tr>
+            <tr><td>/exit</td><td>離開 REPL</td><td>低</td></tr>
+            <tr><td>/assistant</td><td>KAIROS 助理模式命令</td><td>中</td></tr>
+            <tr><td>/brief</td><td>切換簡短回覆模式</td><td>低</td></tr>
+            <tr><td>/proactive</td><td>切換主動流程模式</td><td>中</td></tr>
+            <tr><td>/remote-control</td><td>連線遠端控制工作階段</td><td>高</td></tr>
+            <tr><td>/voice</td><td>切換語音模式</td><td>中</td></tr>
+            <tr><td>/web-setup</td><td>遠端 Web 設定流程</td><td>高</td></tr>
+            <tr><td>/fork</td><td>啟動子代理分叉流程</td><td>中</td></tr>
+            <tr><td>/buddy</td><td>互動夥伴相關命令</td><td>低</td></tr>
+            <tr><td>/workflows</td><td>執行 workflow 腳本命令</td><td>高</td></tr>
+            <tr><td>/peers</td><td>同儕通道與協作命令</td><td>中</td></tr>
+            <tr><td>/torch</td><td>實驗性功能入口</td><td>中</td></tr>
+            <tr><td>/login</td><td>登入 Anthropic 帳號</td><td>高</td></tr>
+            <tr><td>/logout</td><td>登出 Anthropic 帳號</td><td>中</td></tr>
+            <tr><td>/commit</td><td>建立 git commit（內部命令）</td><td>高</td></tr>
+            <tr><td>/commit-push-pr</td><td>commit + push + 建 PR（內部命令）</td><td>高</td></tr>
+            <tr><td>/autofix-pr</td><td>嘗試自動修 PR 問題（內部命令）</td><td>高</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="tools">
+        <h2>Tools 速查（依 <code>getAllBaseTools()</code> 與 gates）</h2>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>一行用途</th>
+              <th>風險</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Read</td><td>讀取檔案或目錄內容</td><td>低</td></tr>
+            <tr><td>Glob</td><td>以 pattern 尋找檔案</td><td>低</td></tr>
+            <tr><td>Grep</td><td>以 regex 搜尋內容</td><td>低</td></tr>
+            <tr><td>WebFetch</td><td>抓取並摘要網頁內容</td><td>中</td></tr>
+            <tr><td>WebSearch</td><td>用搜尋引擎找網頁資料</td><td>中</td></tr>
+            <tr><td>ListMcpResourcesTool</td><td>列出 MCP server 提供資源</td><td>中</td></tr>
+            <tr><td>ReadMcpResourceTool</td><td>讀取指定 MCP 資源</td><td>中</td></tr>
+            <tr><td>Edit</td><td>局部修改既有檔案內容</td><td>高</td></tr>
+            <tr><td>Write</td><td>覆寫或新建檔案內容</td><td>高</td></tr>
+            <tr><td>NotebookEdit</td><td>修改 Notebook cell</td><td>高</td></tr>
+            <tr><td>Bash</td><td>執行終端指令</td><td>高</td></tr>
+            <tr><td>PowerShell</td><td>Windows PowerShell 指令執行</td><td>高</td></tr>
+            <tr><td>Agent</td><td>建立子代理處理子任務</td><td>中</td></tr>
+            <tr><td>TaskOutput</td><td>提交任務最終輸出內容</td><td>低</td></tr>
+            <tr><td>TaskStop</td><td>中止正在執行的背景任務</td><td>中</td></tr>
+            <tr><td>TodoWrite</td><td>更新結構化待辦清單</td><td>低</td></tr>
+            <tr><td>TaskCreate</td><td>建立 todo v2 任務</td><td>中</td></tr>
+            <tr><td>TaskGet</td><td>讀取 todo v2 任務細節</td><td>低</td></tr>
+            <tr><td>TaskUpdate</td><td>更新 todo v2 任務狀態</td><td>中</td></tr>
+            <tr><td>TaskList</td><td>列出 todo v2 任務</td><td>低</td></tr>
+            <tr><td>AskUserQuestion</td><td>向使用者提出結構化問題</td><td>低</td></tr>
+            <tr><td>Skill</td><td>載入特定專業技能流程</td><td>中</td></tr>
+            <tr><td>EnterPlanMode</td><td>進入計畫模式（先規劃）</td><td>低</td></tr>
+            <tr><td>ExitPlanMode</td><td>離開計畫模式</td><td>低</td></tr>
+            <tr><td>REPL</td><td>沙箱式互動執行容器</td><td>高</td></tr>
+            <tr><td>ToolSearch</td><td>搜尋可用工具索引</td><td>低</td></tr>
+            <tr><td>EnterWorktree</td><td>切換到工作樹模式</td><td>中</td></tr>
+            <tr><td>ExitWorktree</td><td>離開工作樹模式</td><td>中</td></tr>
+            <tr><td>Sleep</td><td>在流程中等待或排程</td><td>中</td></tr>
+            <tr><td>CronCreate</td><td>建立排程觸發任務</td><td>高</td></tr>
+            <tr><td>CronDelete</td><td>刪除排程觸發任務</td><td>高</td></tr>
+            <tr><td>CronList</td><td>列出排程觸發任務</td><td>中</td></tr>
+            <tr><td>RemoteTrigger</td><td>透過遠端觸發工作</td><td>高</td></tr>
+            <tr><td>Monitor</td><td>監控任務流程執行</td><td>中</td></tr>
+            <tr><td>Workflow</td><td>執行 workflow 工具流程</td><td>高</td></tr>
+            <tr><td>WebBrowser</td><td>控制瀏覽器進行操作</td><td>高</td></tr>
+            <tr><td>Snip</td><td>歷史片段切分與操作</td><td>中</td></tr>
+            <tr><td>SendUserFile</td><td>把檔案回傳給使用者</td><td>高</td></tr>
+            <tr><td>PushNotification</td><td>推播通知到外部通道</td><td>中</td></tr>
+            <tr><td>SubscribePR</td><td>訂閱 PR webhook 事件</td><td>中</td></tr>
+            <tr><td>SendMessage</td><td>傳送協作訊息給同儕節點</td><td>中</td></tr>
+            <tr><td>ListPeers</td><td>列出可協作 peer</td><td>低</td></tr>
+            <tr><td>TeamCreate</td><td>建立協作小隊</td><td>中</td></tr>
+            <tr><td>TeamDelete</td><td>刪除協作小隊</td><td>中</td></tr>
+            <tr><td>Config</td><td>在 ant build 下直接改設定</td><td>中</td></tr>
+            <tr><td>Tungsten</td><td>ant 專用工具入口</td><td>中</td></tr>
+          </tbody>
+        </table>
+        <p class="explain-note">註：風險等級是「操作層風險」，不是工具品質評分；真正可用性仍以執行時 gate、permission、mode 為準。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="tools-catalog.html">← 上一頁：內建 Tools</a>
+      <a href="../index.html">回首頁 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

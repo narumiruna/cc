@@ -17,7 +17,8 @@
     { page: '13', label: '終端 UI', href: 'pages/terminal-ui.html' },
     { page: '14', label: '未開放功能', href: 'pages/unreleased-features.html' },
     { page: '15', label: '內建 Commands', href: 'pages/commands-catalog.html' },
-    { page: '16', label: '內建 Tools', href: 'pages/tools-catalog.html' }
+    { page: '16', label: '內建 Tools', href: 'pages/tools-catalog.html' },
+    { page: '17', label: '操作速查表', href: 'pages/ops-cheatsheet.html' }
   ];
 
   function renderTopNav() {
