@@ -12,6 +12,7 @@ This document records the current structure of the tutorial website so future up
 
 - `index.html`: landing page and chapter index
 - `pages/*.html`: chapter pages (one topic per page)
+- Current chapter set includes `pages/architecture-overview.html` as the architecture overview tab.
 - Current chapter set includes `pages/unreleased-features.html` as the "source-code radar" page for potentially unreleased capabilities.
 - `assets/site.css`: CSS entrypoint that imports layered style files
 - `assets/styles/tokens.css`: design tokens, theme variables, base element defaults

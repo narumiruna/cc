@@ -1,6 +1,7 @@
 (function () {
   var NAV_ITEMS = [
     { page: 'home', label: '首頁', href: 'index.html' },
+    { page: '00', label: '架構總覽', href: 'pages/architecture-overview.html' },
     { page: '01', label: '快速起步', href: 'pages/quickstart.html' },
     { page: '02', label: '啟動流程', href: 'pages/runtime-entry.html' },
     { page: '03', label: '指令系統', href: 'pages/command-system.html' },

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>架構總覽 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="00">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>架構總覽：一頁看懂 Claude Code 主骨架</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>這一頁是「overview tab」：先看整體，再決定要深入哪一章。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>從 <code>src/</code> 的主路徑可看到 Claude Code 是「入口分流 -> 主程序協調 -> 回合引擎執行 -> 工具與狀態更新」的分層架構。入口層在 <code>src/entrypoints/cli.tsx</code>，先處理 fast-path；協調層集中在 <code>src/main.tsx</code>，負責把命令、工具、模式與會話串起來；執行層以 <code>src/query.ts</code> 的 query loop 為核心，管理模型回應、工具呼叫與錯誤復原。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="snippet"><code class="language-ts">// src/entrypoints/cli.tsx
+if (args.length === 1 && (args[0] === '--version' || args[0] === '-v')) {
+  console.log(`${MACRO.VERSION} (Claude Code)`)
+  return
+}
+
+// 其他情境才進完整流程
+const { main } = await import('../main.js')
+await main()</code></pre>
+        <p class="explain-note">入口先做快取路徑判斷，避免每次都載入整個系統。</p>
+        <pre class="pseudo"><code class="language-text">CLI 參數輸入
+-> entrypoint fast-path 分流（version / daemon / bg / runner...）
+-> main.tsx 組裝命令、工具、模式、session、權限
+-> query.ts 執行回合迴圈
+-> runTools / hooks / compact / token budget
+-> 更新狀態與輸出 UI</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[entrypoints/cli.tsx<br/>快速分流] --> B[main.tsx<br/>協調與初始化]
+  B --> C[commands.ts<br/>命令註冊與 gate]
+  B --> D[tools.ts<br/>工具清單與 gate]
+  B --> E[tasks.ts<br/>任務型別組裝]
+  B --> F[query.ts<br/>回合引擎]
+  F --> G[toolOrchestration / hooks]
+  F --> H[state + session storage]
+  H --> I[terminal UI]
+        </pre>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼是這個形狀）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：入口做 fast-path，重模組延遲載入</h3>
+          <p>在 <code>src/entrypoints/cli.tsx</code>，<code>--version</code> 可零額外載入直接回應；其他指令才進 <code>main.js</code>。這讓常見查詢延遲最小化。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：功能透過 feature gate 漸進開放</h3>
+          <p><code>src/commands.ts</code>、<code>src/tools.ts</code>、<code>src/main.tsx</code> 大量使用 <code>feature('...')</code>，把 assistant、bridge、workflow、browser 等能力做條件載入。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：回合引擎集中處理錯誤與恢復</h3>
+          <p><code>src/query.ts</code> 把 compact、tool orchestration、token budget、max output recovery 集中在同一個 query loop，讓行為可預測且便於追蹤。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>目前採用判斷</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>單一 mega-main（入口直接初始化全部）</td>
+              <td>路徑單純、檔案切換少</td>
+              <td>冷啟動重、簡單命令成本高</td>
+              <td>未採用，改為 entrypoint 分流 + 延遲載入</td>
+            </tr>
+            <tr>
+              <td>全部功能預設啟用</td>
+              <td>行為一致、文件較好寫</td>
+              <td>實驗風險高，難灰度發布</td>
+              <td>未採用，改用 feature gate 漸進開放</td>
+            </tr>
+            <tr>
+              <td>每個模組各自處理復原</td>
+              <td>模組自治高</td>
+              <td>錯誤策略分散、難維護</td>
+              <td>未採用，query loop 集中復原策略</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：把入口做太重</h3>
+          <p><strong>症狀：</strong>簡單命令也變慢。<strong>防護：</strong>維持 <code>src/entrypoints/cli.tsx</code> 只做分流，不把業務邏輯塞進入口。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：feature gate 與文件不同步</h3>
+          <p><strong>症狀：</strong>文件說可用，但實際被 gate 關閉。<strong>防護：</strong>每次寫教學都先查 <code>src/commands.ts</code> / <code>src/tools.ts</code> 的 gate 條件。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：回合恢復邏輯散落</h3>
+          <p><strong>症狀：</strong>max token、tool 錯誤、compact 行為不一致。<strong>防護：</strong>以 <code>src/query.ts</code> 為唯一真實來源追蹤恢復策略。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（overview tab 怎麼用）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>先讀本頁 Mermaid 圖，確認你能說出「入口、協調、執行」三層責任。</li>
+          <li>再對照章節深讀：入口看「啟動流程」、協調看「指令系統/工具系統」、執行看「回合引擎」。</li>
+          <li>若你在排查功能可用性，先查 <code>feature('...')</code>，再看命令與工具是否真的被註冊。</li>
+          <li>改動前後都跑一次此頁提到的路徑檢查，確保沒有打破分層邊界。</li>
+        </ul>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="../index.html">← 回首頁</a>
+      <a href="quickstart.html">下一頁：快速起步 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>
