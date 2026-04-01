@@ -35,50 +35,54 @@
       </nav>
     </header>
 
-    <section class="block">
-      <h2>如何使用本教學</h2>
-      <p>每一章採「同頁多層次」設計，以三種深度標籤區分內容：</p>
-      <div class="depth-row">
-        <span class="depth-tag depth-l1">L1 入門</span>
-        <span class="depth-tag depth-l2">L2 實務</span>
-        <span class="depth-tag depth-l3">L3 原理</span>
-      </div>
-      <ul>
-        <li><strong>L1 入門</strong> — 90 秒即可讀完的概念總覽，適合初次接觸的讀者快速掌握全貌。</li>
-        <li><strong>L2 實務</strong> — 執行路徑、關鍵決策與程式碼片段，適合想動手實作的開發者。</li>
-        <li><strong>L3 原理</strong> — 設計取捨、替代方案比較與失敗路徑分析，適合追求深層理解的架構師。</li>
-      </ul>
-      <p>建議先從 L1 通讀一遍建立心智圖，再依需求逐章深入 L2 與 L3。</p>
-    </section>
+    <main class="home-main">
+      <section class="block">
+        <h2>先選你的閱讀深度</h2>
+        <p>本網站採「同頁多層次」架構：每章都從快讀到深挖，避免你在多頁切換中迷路。</p>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 實務</span>
+          <span class="depth-tag depth-l3">L3 原理</span>
+        </div>
+        <div class="path-grid">
+          <article class="path-card">
+            <h3>L1：90 秒建立全貌</h3>
+            <p>快速抓責任邊界與主流程，先建立心智圖再進細節。</p>
+          </article>
+          <article class="path-card">
+            <h3>L2：看懂執行與決策</h3>
+            <p>專注執行路徑、關鍵判斷與常見改動點，能直接落地實作。</p>
+          </article>
+          <article class="path-card">
+            <h3>L3：理解取捨與失敗路徑</h3>
+            <p>分析替代方案與邊界條件，建立可維護、可擴充的設計觀。</p>
+          </article>
+        </div>
+      </section>
 
-    <section class="block">
-      <h2>每章結構</h2>
-      <p>所有章節皆遵循統一模板，包含以下六個區塊：</p>
-      <ol>
-        <li><strong>90 秒總覽</strong> — 一段話概述該章主題，讓你在最短時間建立認知框架。</li>
-        <li><strong>執行路徑</strong> — 以流程圖與虛擬碼呈現核心邏輯的運作順序。</li>
-        <li><strong>關鍵決策</strong> — 標註原始碼中重要的分支判斷與設計選擇。</li>
-        <li><strong>替代方案取捨</strong> — 比較不同方案的優缺點，理解為何選擇目前的做法。</li>
-        <li><strong>失敗路徑</strong> — 列出常見錯誤場景與對應的錯誤處理機制。</li>
-        <li><strong>實作驗證</strong> — 提供可執行的檢查清單，讓你驗證自己的理解是否正確。</li>
-      </ol>
-    </section>
+      <section class="block">
+        <h2>章節閱讀骨架</h2>
+        <p>所有章節遵循同一個閱讀順序，確保你在不同主題下也能維持一致節奏。</p>
+        <ol>
+          <li><strong>90 秒總覽</strong>：先定義這章解決的核心問題。</li>
+          <li><strong>執行路徑</strong>：用流程圖與片段程式碼掌握主幹。</li>
+          <li><strong>關鍵決策</strong>：理解設計選擇與代價。</li>
+          <li><strong>替代方案取捨</strong>：知道為什麼不是另一種做法。</li>
+          <li><strong>失敗路徑</strong>：先看錯誤，再看防護。</li>
+          <li><strong>實作驗證</strong>：用最小驗證集確認你真的看懂。</li>
+        </ol>
+      </section>
 
-    <section class="block">
-      <h2>適合對象</h2>
-      <p>本教學適合以下讀者：</p>
-      <ul>
-        <li><strong>初學者</strong> — 想了解 Claude Code 內部架構全貌，建立系統性認知。</li>
-        <li><strong>中階開發者</strong> — 已使用過 Claude Code，想深入理解啟動流程、工具系統與權限機制的運作細節。</li>
-        <li><strong>架構導向讀者</strong> — 關注設計取捨、狀態管理與擴充機制，希望從原始碼層級掌握系統設計。</li>
-      </ul>
-      <p>無論你的經驗程度如何，都能透過 L1／L2／L3 多層次設計找到合適的閱讀深度。</p>
-    </section>
-
-    <section class="block">
-      <h2>學習路線圖</h2>
-      <p>建議依照以下三階段循序閱讀，每一階段結束後再進入下一階段：</p>
-      <pre class="mermaid">
+      <section class="block">
+        <h2>四階段學習路線</h2>
+        <p>建議按階段前進，每階段都先 L1，再依需求深入 L2 與 L3。</p>
+        <div class="phase-grid">
+          <div class="phase-item"><strong>階段一：基礎概念</strong><span>快速起步 → 啟動流程 → 指令系統</span></div>
+          <div class="phase-item"><strong>階段二：核心機制</strong><span>工具系統 → 回合引擎 → 服務與 MCP</span></div>
+          <div class="phase-item"><strong>階段三：進階架構</strong><span>狀態與任務 → 模式與權限 → 記憶系統 → 代理與擴充</span></div>
+          <div class="phase-item"><strong>階段四：深入主題</strong><span>提示系統 → Hooks 與自動化 → 終端 UI</span></div>
+        </div>
+        <pre class="mermaid">
 graph LR
   subgraph phase1["基礎概念"]
     A[快速起步] --> B[啟動流程]
@@ -100,16 +104,10 @@ graph LR
     K --> L[Hooks 與自動化]
     L --> M[終端 UI]
   end
-      </pre>
-      <ul>
-        <li><strong>階段一：基礎概念</strong> — 建立整體心智圖，了解 Claude Code 如何啟動與接收指令。</li>
-        <li><strong>階段二：核心機制</strong> — 深入工具運作、回合生命週期與外部服務整合方式。</li>
-        <li><strong>階段三：進階架構</strong> — 掌握狀態管理、安全權限、記憶機制與代理擴充設計。</li>
-        <li><strong>階段四：深入主題</strong> — 探索提示設計、事件自動化與終端渲染框架的內部原理。</li>
-      </ul>
-    </section>
+        </pre>
+      </section>
 
-    <section class="grid">
+      <section class="grid" aria-label="章節索引">
       <article class="card">
         <div class="card-header"><span class="card-num">1</span><h2>快速起步</h2></div>
         <p>先建立整體心智圖，再進入主流程。本章以鳥瞰視角介紹 Claude Code 的核心模組與彼此的協作關係，幫助你在 90 秒內掌握系統全貌。適合作為所有章節的起點。</p>
@@ -175,9 +173,10 @@ graph LR
         <p>用 React 渲染終端機介面的完整框架。本章拆解自建 React 調和器、Yoga Flexbox 排版引擎、雙緩衝與 Blit 優化、2D Cell 螢幕模型等核心技術，理解 CLI 如何實現瀏覽器等級的渲染能力。</p>
         <a class="card-link" href="pages/terminal-ui.html">前往</a>
       </article>
-    </section>
+      </section>
+    </main>
 
-    <p class="footer">閱讀建議：先從「快速起步」建立全貌，依照路線圖四階段循序推進。每章皆可從 L1 入門開始，再按興趣深入 L2 實務與 L3 原理。</p>
+    <p class="footer">閱讀建議：先從「快速起步」建立全貌，再按四階段推進。每章先讀 L1，再視需求進入 L2 與 L3。</p>
   </div>
   <script src="assets/site.js"></script>
 </body>

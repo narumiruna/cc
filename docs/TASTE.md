@@ -1,1 +1,2 @@
 - Prefer progressive depth explanations (from fundamentals to advanced details) for architecture tutorials on the project website.
+- Record website structure changes in documentation as part of implementation updates.

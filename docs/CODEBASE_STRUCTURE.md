@@ -38,3 +38,8 @@ This guide describes the codebase by responsibility boundaries rather than file-
 - trace request path: input -> orchestration -> execution -> reporting
 - keep changes within one responsibility boundary whenever possible
 - validate edge conditions where policy and mode transitions intersect
+
+## 7) Website Documentation Surface
+
+- tutorial website structure is documented in `docs/WEBSITE_STRUCTURE.md`
+- keep website layout, navigation, and shared asset boundaries aligned with that record
