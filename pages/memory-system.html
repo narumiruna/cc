@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>記憶系統 | Claude Code 初學者教學</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="09">
+<div class="shell">
+<header class="header">
+<div class="header-title-row">
+<h1>記憶系統：對話之外的持續性</h1>
+<button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+</div>
+<p>記憶層讓系統跨回合、跨會話仍能保留有效上下文。</p>
+<nav class="top-nav" aria-label="主要導覽">
+<a data-page="home" href="../index.html">首頁</a>
+<a data-page="01" href="quickstart.html">快速起步</a>
+<a data-page="02" href="runtime-entry.html">啟動流程</a>
+<a data-page="03" href="command-system.html">指令系統</a>
+<a data-page="04" href="tool-system.html">工具系統</a>
+<a data-page="05" href="query-engine.html">回合引擎</a>
+<a data-page="06" href="services-mcp.html">服務與 MCP</a>
+<a data-page="07" href="state-tasks.html">狀態與任務</a>
+<a data-page="08" href="permissions-modes.html">模式與權限</a>
+<a data-page="09" href="memory-system.html">記憶系統</a>
+<a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+<a data-page="11" href="prompt-system.html">提示系統</a>
+<a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+<a data-page="13" href="terminal-ui.html">終端 UI</a>
+</nav>
+<nav class="toc-local" aria-label="章內導覽">
+<a href="#tldr">90 秒總覽</a>
+<a href="#runtime-path">執行路徑</a>
+<a href="#decisions">關鍵決策</a>
+<a href="#tradeoffs">替代方案與取捨</a>
+<a href="#failure-modes">失敗路徑</a>
+<a href="#implementation">實作驗證</a>
+</nav>
+</header>
+<main>
+<section class="block" id="tldr">
+<h2>90 秒總覽</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l1">L1 入門</span>
+<span class="depth-tag depth-l2">L2 進階</span>
+</div>
+<p>記憶系統讓 Claude Code 不只是「回合內有上下文」，而是能跨回合、跨會話甚至跨開發者保留有效資訊。它分為三層：Session 記憶（當前會話的短期狀態）、Durable 記憶（寫入 CLAUDE.md 的持久偏好與慣例）、Team 記憶（跨開發者共享的專案脈絡）。回合結束時，系統會依序更新這三層，確保重要資訊不會隨會話結束而遺失。</p>
+</section>
+
+<section class="block" id="runtime-path">
+<h2>執行路徑（主骨架）</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l1">L1 入門</span>
+<span class="depth-tag depth-l2">L2 進階</span>
+<span class="depth-tag depth-l3">L3 架構</span>
+</div>
+<pre class="snippet"><code class="language-ts">afterTurn(() => {
+  updateSessionMemory()
+  extractDurableMemory()
+  maybeSyncTeamMemory()
+})</code></pre>
+<pre class="pseudo"><code class="language-text">回合結束
+→ 更新短期記憶
+→ 萃取長期記憶
+→ 必要時同步團隊記憶</code></pre>
+<pre class="mermaid">flowchart TD
+  A[回合結束] --> B[afterTurn hook]
+  B --> C[更新 Session 記憶]
+  C --> D[萃取候選 Durable 記憶]
+  D --> E[品質過濾]
+  E --> F[寫入 CLAUDE.md]
+  F --> G{檢查團隊同步條件}
+  G -->|符合| H[同步 Team 記憶]
+  G -->|不符合| I[略過]
+  H --> J[完成]
+  I --> J</pre>
+<div class="impl-checklist">
+<h3>路徑判讀重點</h3>
+<ul>
+<li>三層記憶依序更新：Session → Durable → Team，確保短期先穩定再萃取長期。</li>
+<li>品質過濾是關鍵閘門，避免低品質資訊污染 CLAUDE.md。</li>
+<li>Team 記憶同步是條件式的，僅在偵測到有意義的變更時才觸發。</li>
+</ul>
+</div>
+</section>
+
+<section class="block" id="decisions">
+<h2>關鍵決策（為什麼這樣設計）</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l2">L2 進階</span>
+<span class="depth-tag depth-l3">L3 架構</span>
+</div>
+<div class="decision-card">
+<h3>決策 1：三層分離而非單一記憶池</h3>
+<p><strong>原因：</strong>不同生命週期需要不同管理策略。Session 記憶隨會話結束即丟棄，Durable 記憶需要持久化，Team 記憶需要跨開發者同步——將三者混在一起會導致管理邏輯過度複雜。</p>
+<p><strong>代價：</strong>系統需要維護三套更新與查詢機制，實作成本較高。</p>
+</div>
+<div class="decision-card">
+<h3>決策 2：Durable 記憶以 CLAUDE.md 檔案為載體</h3>
+<p><strong>原因：</strong>版本控制友善、人類可讀可編輯。開發者可以直接打開 CLAUDE.md 審閱或修改記憶內容，不需要額外工具；同時 Git 能追蹤每次變更的歷史。</p>
+<p><strong>代價：</strong>純文字格式的表達力有限，不適合儲存結構化或大量資料。</p>
+</div>
+<div class="decision-card">
+<h3>決策 3：Team 記憶採差量同步而非全量覆蓋</h3>
+<p><strong>原因：</strong>避免覆蓋其他開發者的變更。多人協作時若採全量覆蓋，後寫入者會抹掉先寫入者的記憶更新，造成資訊遺失。</p>
+<p><strong>代價：</strong>差量同步需要衝突偵測與合併邏輯，實作複雜度較高。</p>
+</div>
+</section>
+
+<section class="block" id="tradeoffs">
+<h2>替代方案與取捨</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l2">L2 進階</span>
+<span class="depth-tag depth-l3">L3 架構</span>
+</div>
+<table class="tradeoff-table">
+<thead>
+<tr>
+<th>方案</th>
+<th>優點</th>
+<th>缺點</th>
+<th>為何未採用/何時可採用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>單一記憶池</td>
+<td>實作簡單，查詢路徑統一</td>
+<td>不同生命週期的資訊混雜，難以分別管理</td>
+<td>無法滿足跨會話與跨開發者的不同需求</td>
+</tr>
+<tr>
+<td>三層分離（Session / Durable / Team）</td>
+<td>各層職責明確，生命週期獨立管理</td>
+<td>維護成本較高，層間同步需額外邏輯</td>
+<td>目前採用；在彈性與複雜度間取得平衡</td>
+</tr>
+<tr>
+<td>資料庫儲存</td>
+<td>結構化查詢、支援大量資料</td>
+<td>需要額外依賴，對版本控制不友善</td>
+<td>不適合輕量 CLI 工具場景</td>
+</tr>
+<tr>
+<td>檔案系統（CLAUDE.md）</td>
+<td>人類可讀、Git 友善、零依賴</td>
+<td>表達力有限，不支援複雜查詢</td>
+<td>目前採用；簡單場景優勢明顯</td>
+</tr>
+<tr>
+<td>全量同步</td>
+<td>實作簡單，無需合併邏輯</td>
+<td>後寫入者覆蓋先寫入者的變更</td>
+<td>多人協作場景下資訊遺失風險過高</td>
+</tr>
+<tr>
+<td>差量同步</td>
+<td>保留所有開發者的貢獻</td>
+<td>需要衝突偵測與合併策略</td>
+<td>目前採用；協作安全性優先</td>
+</tr>
+<tr>
+<td>自動萃取</td>
+<td>無需使用者介入，流程順暢</td>
+<td>可能萃取出低品質或無關的記憶</td>
+<td>目前採用；搭配品質過濾降低風險</td>
+</tr>
+<tr>
+<td>手動標記</td>
+<td>精確度高，使用者完全控制</td>
+<td>增加使用者負擔，容易遺忘</td>
+<td>可作為進階功能補充自動萃取</td>
+</tr>
+</tbody>
+</table>
+</section>
+
+<section class="block" id="failure-modes">
+<h2>失敗路徑與防護</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l2">L2 進階</span>
+<span class="depth-tag depth-l3">L3 架構</span>
+</div>
+<div class="failure-case">
+<h3>Failure 1：記憶萃取品質低下（雜訊過多）</h3>
+<p><strong>症狀：</strong>CLAUDE.md 中累積大量無用或重複的記憶條目，導致上下文窗口被低品質資訊佔據，降低後續回合的推理品質。</p>
+<p><strong>防護：</strong>在萃取階段加入品質過濾機制，僅保留具有可操作性、明確且不重複的記憶條目，並定期清理過期內容。</p>
+</div>
+<div class="failure-case">
+<h3>Failure 2：CLAUDE.md 合併衝突</h3>
+<p><strong>症狀：</strong>多個會話或開發者同時寫入 CLAUDE.md，產生 Git 合併衝突，導致記憶更新失敗或內容損毀。</p>
+<p><strong>防護：</strong>採用追加式寫入策略降低衝突機率，並在偵測到衝突時保留雙方內容、標記待人工審閱。</p>
+</div>
+<div class="failure-case">
+<h3>Failure 3：Team 記憶同步延遲或失敗</h3>
+<p><strong>症狀：</strong>開發者 A 更新的記憶未即時同步到開發者 B，導致 B 的會話使用過時的團隊脈絡做出不一致的決策。</p>
+<p><strong>防護：</strong>在會話啟動時主動拉取最新 Team 記憶，並在同步失敗時以本地記憶為準、記錄失敗事件供後續重試。</p>
+</div>
+</section>
+
+<section class="block" id="implementation">
+<h2>實作驗證（你改完要怎麼確認）</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l1">L1 入門</span>
+<span class="depth-tag depth-l2">L2 進階</span>
+</div>
+<ul>
+<li>確認 Session 記憶在回合間保持連續：在同一會話中執行多個回合，驗證前一回合的上下文在下一回合仍可存取。</li>
+<li>確認 Durable 記憶正確寫入 CLAUDE.md：執行會產生持久記憶的操作後，檢查 CLAUDE.md 是否新增對應條目。</li>
+<li>確認 Team 記憶同步不覆蓋既有內容：模擬兩位開發者分別寫入記憶，驗證合併後雙方內容皆保留。</li>
+<li>確認記憶品質過濾有效：故意產生低品質候選記憶，驗證過濾機制能正確攔截，不寫入 CLAUDE.md。</li>
+</ul>
+<p class="explain-note">這四步對應「Session 連續性、Durable 持久化、Team 同步安全、品質閘門」，是最低可接受驗證集。</p>
+</section>
+</main>
+
+<div class="pager">
+<a href="permissions-modes.html">← 上一頁</a>
+<a href="agent-and-extension.html">下一頁：代理與擴充 →</a>
+</div>
+</div>
+<script src="../assets/site.js"></script>
+</body>
+</html>

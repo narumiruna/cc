@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>快速起步 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="01">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>快速起步：先掌握整體地圖</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>先知道每一層在做什麼，再進入細節，學習效率會高很多。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>Claude Code 是一個大型 CLI 應用，理解它的關鍵是先掌握「入口→協調層→執行層」的分工。入口負責快速分流，協調層組裝能力，執行層按回合處理。只要抓住這三層的責任邊界，就能用最短時間建立全局觀，後續深入任何模組都不會迷路。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="snippet"><code class="language-ts">// 啟動重點：先分流，再載入主流程
+if (isVersionFlag(args)) {
+  console.log(VERSION)
+  return
+}
+await import('../main.js')</code></pre>
+        <p class="explain-note">先把最快回答的需求擋在入口，避免整個系統都載入。</p>
+        <pre class="pseudo"><code class="language-text">input: CLI args
+if args 是快速查詢:
+  直接回覆並結束
+else:
+  初始化設定
+  組裝命令與工具
+  交給回合引擎處理</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[CLI args 輸入] --> B{fast-path 檢查}
+  B -->|是| C[立即回應並結束]
+  B -->|否| D[初始化設定]
+  D --> E[組裝命令與工具]
+  E --> F[交給回合引擎處理]</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>入口只做分流，不載入任何功能模組。</li>
+            <li>主流程才做完整初始化：設定、命令、工具一次到位。</li>
+            <li>功能模組在回合中按需使用，不提前佔用資源。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：入口做 fast-path 分流</h3>
+          <p><strong>原因：</strong>避免冷啟動延遲。像 <code>--version</code> 這類查詢不需要載入整個系統，直接在入口回覆即可。</p>
+          <p><strong>代價：</strong>每新增 fast-path 指令都要更新入口判斷邏輯，需維護清楚的分流清單。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：延遲載入主模組</h3>
+          <p><strong>原因：</strong>減少首次回應時間。用 <code>await import()</code> 確保只有真正需要完整功能時才載入。</p>
+          <p><strong>代價：</strong>動態載入讓靜態分析難以追蹤模組依賴，IDE 跳轉可能失效。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：按責任邊界分層而非按功能分檔</h3>
+          <p><strong>原因：</strong>降低認知負擔。初學者可以沿「入口→協調→執行」的路線理解，而不必在功能資料夾間跳躍。</p>
+          <p><strong>代價：</strong>同一層的檔案可能很多，需要清楚的命名慣例來區分。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>全量載入（啟動時載入所有模組）</td>
+              <td>程式碼路徑單純，無動態載入複雜度</td>
+              <td>冷啟動慢，簡單查詢也要等完整初始化</td>
+              <td>模組體積小時可行，目前系統規模過大不適合</td>
+            </tr>
+            <tr>
+              <td>多入口（每個功能獨立入口檔）</td>
+              <td>各功能完全獨立，啟動最快</td>
+              <td>共用邏輯重複，維護成本高</td>
+              <td>適合微服務架構，單一 CLI 應用不適合</td>
+            </tr>
+            <tr>
+              <td>按功能分檔（feature-based 資料夾）</td>
+              <td>單一功能所有檔案集中，修改方便</td>
+              <td>跨功能協調難以追蹤，初學者難建立全局觀</td>
+              <td>功能數量少時可行，目前規模下責任分層更清晰</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：fast-path 判斷遺漏新指令</h3>
+          <p><strong>症狀：</strong>新增的快速查詢指令仍走完整初始化路徑，回應變慢。</p>
+          <p><strong>防護：</strong>新增 fast-path 指令時同步更新入口分流清單，並加入對應的啟動時間測試。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：主模組載入失敗</h3>
+          <p><strong>症狀：</strong>動態 <code>import()</code> 拋出錯誤，使用者看到未處理的例外。</p>
+          <p><strong>防護：</strong>在入口層加 try/catch，捕獲載入失敗並輸出可讀的錯誤訊息與排查建議。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：初始化順序錯亂</h3>
+          <p><strong>症狀：</strong>模組依賴尚未就緒就被呼叫，導致 undefined 錯誤或靜默失敗。</p>
+          <p><strong>防護：</strong>初始化階段使用明確的順序控制（如 await 鏈），避免平行初始化產生競態條件。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>執行 <code>--version</code>：確認立即返回版本號，不觸發完整初始化。</li>
+          <li>執行完整初始化路徑：確認設定、命令、工具皆正確載入且無遺漏。</li>
+          <li>模擬主模組載入失敗：確認錯誤處理有明確回饋，不出現未捕獲例外。</li>
+          <li>檢查初始化順序：確認各模組按依賴關係依序載入，無競態條件。</li>
+        </ul>
+        <p class="explain-note">這四步對應「fast-path、主路徑、錯誤路徑、順序驗證」，是最低可接受驗證集。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="../index.html">← 回首頁</a>
+      <a href="runtime-entry.html">下一頁：啟動流程 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>服務與 MCP | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="06">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>服務與 MCP：外部能力的整合邊界</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>服務層把外部世界隔離起來，讓上層流程保持可測試與可維護。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>服務層是 Claude Code 與外部世界之間的邊界。所有外部依賴（API 呼叫、MCP 伺服器、檔案系統服務等）都透過服務層封裝，上層流程不直接接觸外部實作。MCP（Model Context Protocol）是關鍵的擴充機制：外部伺服器可透過標準協議提供工具、資源與指令，經過政策過濾後整合進系統。這種設計讓核心流程保持可測試、可替換、可監控。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="snippet"><code class="language-ts">const { tools, commands, resources } =
+  await getMcpToolsCommandsAndResources(config)
+
+return {
+  tools: excludeToolsByPolicy(tools),
+  commands,
+  resources,
+}</code></pre>
+        <p class="explain-note">先透過 MCP 標準協議拉取所有可用能力，再經由政策過濾排除不合規項目，最後合併到主工具清單提供給回合引擎。</p>
+        <pre class="pseudo"><code class="language-text">1. 讀取 MCP 設定，取得已註冊的伺服器清單
+2. 探索各 MCP 伺服器，確認可用性
+3. 建立連線，拉取工具、資源與命令
+4. 對拉取結果套用政策過濾
+5. 將通過過濾的能力合併到主工具清單，提供給回合引擎</code></pre>
+        <pre class="mermaid">flowchart LR
+  A[設定載入] --> B[MCP 伺服器探索]
+  B --> C[建立連線]
+  C --> D[拉取工具+資源+命令]
+  D --> E[政策過濾]
+  E --> F[合併到主工具清單]
+  F --> G[提供給回合引擎]</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>設定載入階段決定哪些 MCP 伺服器會被連線，未列入設定的伺服器不會被探索。</li>
+            <li>伺服器探索與連線建立是逐一進行的，任一伺服器失敗不影響其餘伺服器。</li>
+            <li>政策過濾發生在整合階段而非使用階段，確保不合規工具從未進入主清單。</li>
+            <li>合併後的工具清單對回合引擎來說是統一介面，不區分來源是內建還是 MCP。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：外部依賴必須經過服務層</h3>
+          <p><strong>原因：</strong>所有外部呼叫（API、MCP 伺服器、檔案系統）統一經過服務層封裝，讓上層邏輯只依賴抽象介面。這使得核心流程可以獨立測試與維護，不受外部實作變動影響。</p>
+          <p><strong>代價：</strong>新增外部依賴時必須先在服務層建立對應的封裝，無法直接從上層呼叫，初期開發速度略慢。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：MCP 採用標準協議而非自訂介面</h3>
+          <p><strong>原因：</strong>使用 Model Context Protocol 標準協議讓第三方伺服器能以統一方式提供工具、資源與命令，大幅降低整合成本。任何符合 MCP 規範的伺服器都能即插即用，無需為每個外部來源撰寫客製化適配器。</p>
+          <p><strong>代價：</strong>標準協議的彈性受限於規範定義，遇到規範未涵蓋的需求時需等待上游演進或在服務層額外擴充。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：政策過濾在整合時執行而非使用時</h3>
+          <p><strong>原因：</strong>在 MCP 能力整合進主清單時就執行政策過濾，能及早排除不合規工具。這樣回合引擎拿到的永遠是已通過審查的清單，不需在每次工具呼叫時重複檢查，降低運行時開銷與遺漏風險。</p>
+          <p><strong>代價：</strong>政策變更後需重新觸發整合流程才能生效，無法在執行中即時動態調整可用工具集。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <caption>替代方案比較表</caption>
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>直接呼叫外部 API（不經服務層）</td>
+              <td>開發速度快，呼叫路徑短</td>
+              <td>上層流程與外部實作強耦合，難以測試與替換</td>
+              <td>極簡原型可行；正式系統規模下維護成本過高</td>
+            </tr>
+            <tr>
+              <td>自訂擴充協議（取代 MCP 標準協議）</td>
+              <td>可完全按需設計，彈性最大</td>
+              <td>每個外部來源需客製適配器，整合成本隨來源數量線性增長</td>
+              <td>特殊需求超出 MCP 規範時可作為補充；通用場景應優先使用標準協議</td>
+            </tr>
+            <tr>
+              <td>使用時過濾（每次工具呼叫時檢查政策）</td>
+              <td>政策變更可即時生效，無需重新整合</td>
+              <td>每次呼叫都有額外檢查開銷，且容易因遺漏檢查點而產生安全漏洞</td>
+              <td>需要即時動態調整工具集時可考慮；目前整合時過濾已足夠且更安全</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：MCP 伺服器連線失敗</h3>
+          <p><strong>症狀：</strong>目標 MCP 伺服器無法連線（網路不通、伺服器未啟動、認證失敗），導致該伺服器提供的工具與資源全部缺失。</p>
+          <p><strong>防護：</strong>連線階段設定逾時機制與重試策略；單一伺服器失敗不阻斷整體流程，系統以降級模式繼續運作並記錄警告，讓使用者知道哪些能力暫時不可用。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：遠端工具 schema 不合規</h3>
+          <p><strong>症狀：</strong>MCP 伺服器回傳的工具定義不符合預期的 schema 格式（例如缺少必要欄位、型別不符），導致解析失敗或工具行為異常。</p>
+          <p><strong>防護：</strong>在拉取階段對每個工具定義執行 schema 驗證；不合規的工具定義被跳過並記錄錯誤，不影響同一伺服器中其他合規工具的正常整合。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：政策過濾誤擋合法工具</h3>
+          <p><strong>症狀：</strong>政策規則設定過嚴或規則有誤，導致本應可用的工具被過濾排除，使用者無法使用預期的功能。</p>
+          <p><strong>防護：</strong>政策過濾結果加入詳細日誌，記錄每個被排除工具的名稱與觸發規則；提供乾跑（dry-run）模式讓管理員預覽過濾結果，在正式套用前確認無誤。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>確認 MCP 伺服器連線成功：啟動後日誌應顯示各伺服器的連線狀態，無非預期的連線錯誤。</li>
+          <li>確認工具清單正確合併：回合引擎拿到的工具清單應包含內建工具與所有已連線 MCP 伺服器提供的合規工具。</li>
+          <li>確認政策過濾正確執行：被政策排除的工具不應出現在最終清單中，且過濾日誌應記錄排除原因。</li>
+          <li>確認伺服器斷線時的降級行為：模擬某一 MCP 伺服器斷線，系統應繼續運作且正確回報哪些能力暫時不可用。</li>
+        </ul>
+        <p class="explain-note">前兩項是最低可接受驗證集，後兩項針對過濾與容錯做回歸測試。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="query-engine.html">← 上一頁</a>
+      <a href="state-tasks.html">下一頁：狀態與任務 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

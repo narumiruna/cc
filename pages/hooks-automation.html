@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hooks 與自動化 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="12">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>Hooks 與自動化：事件驅動的行為擴充</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>了解如何透過掛鉤機制，在 Claude Code 的事件節點上附加自訂行為——從 shell 命令到 LLM 驗證——不改核心就能擴展工作流。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>Hooks 系統讓使用者在 Claude Code 的事件節點上掛載自動化行為：可以是 shell 命令、LLM 提示、HTTP 呼叫，或完整的代理驗證迴圈。所有掛鉤透過 <code>settings.json</code> 配置，以「事件 → 匹配器 → 掛鉤」三層管線運作。匹配器重用權限規則語法，掛鉤支援同步、非同步、一次性等執行模式。掌握這套管線，就能在不修改核心程式碼的前提下擴充任何工作流。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="pseudo"><code class="language-text">input: 事件觸發（例如 PreToolUse）
+載入 settings.json 中對應事件的 matcher 列表
+for each matcher:
+  if matcher.if 條件匹配當前工具/參數:
+    for each hook in matcher.hooks:
+      依 hook 類型執行:
+        command → 執行 shell 命令（含 timeout）
+        prompt  → 送 LLM 提示（$ARGUMENTS 展開）
+        http    → POST 至指定 URL（含 headers）
+        agent   → 啟動完整代理驗證迴圈
+      回傳結果供主流程決策</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[事件觸發] --> B[載入 Matcher 列表]
+  B --> C{條件匹配？}
+  C -->|否| D[跳過]
+  C -->|是| E[執行 Hook]
+  E --> F{Hook 類型}
+  F -->|command| G[Shell 命令]
+  F -->|prompt| H[LLM 提示]
+  F -->|http| I[HTTP POST]
+  F -->|agent| J[代理驗證]
+  G --> K[回傳結果]
+  H --> K
+  I --> K
+  J --> K</pre>
+        <pre class="snippet"><code class="language-json">// settings.json 掛鉤配置範例
+// "if" 使用權限規則語法：Bash(git *) 表示匹配所有以 git 開頭的 Bash 指令
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "if": "Bash(git *)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '即將執行 git 指令'",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+        <p class="explain-note">三層管線的關鍵：事件決定「何時」、匹配器決定「對誰」、掛鉤決定「做什麼」。</p>
+        <pre class="mermaid">flowchart LR
+  subgraph 三層管線
+    E[Event<br/>何時觸發] --> M[Matcher<br/>對誰觸發]
+    M --> H[Hook<br/>做什麼]
+  end</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>事件名稱固定（PreToolUse、PostToolUse、PreMessage、PostMessage 等），不可自訂。</li>
+            <li>匹配器 <code>if</code> 欄位重用權限規則語法，例如 <code>Bash(git *)</code>。</li>
+            <li>每個匹配器可掛載多個 hook，按陣列順序依次執行。</li>
+            <li>hook 執行結果回傳主流程，可影響後續工具調用決策。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：事件-匹配器-掛鉤三層架構</h3>
+          <p><strong>原因：</strong>將「何時」、「對誰」、「做什麼」三個關注點分離。使用者可以在同一事件上掛載多組匹配器，每組匹配器再各自掛載多個掛鉤，組合彈性極高。</p>
+          <p><strong>代價：</strong>配置結構比扁平陣列深一層，初次接觸需要理解巢狀邏輯。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：使用權限規則語法做條件匹配</h3>
+          <p><strong>原因：</strong>權限系統已有一套成熟的 pattern-matching 語法（如 <code>Bash(git *)</code>）。掛鉤匹配器直接重用，降低使用者學習成本，也減少程式碼重複。</p>
+          <p><strong>代價：</strong>匹配器的能力受限於權限語法的表達力；若需要更複雜的條件（如多欄位交叉比對），現有語法不夠用。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：非同步與一次性模式</h3>
+          <p><strong>原因：</strong><code>async: true</code> 讓耗時掛鉤不阻塞主流程；<code>once: true</code> 讓僅需執行一次的初始化掛鉤自動移除，避免重複觸發。<code>asyncRewake: true</code> 則在背景完成後透過 exit code 2 喚醒模型，兼顧效能與回饋。</p>
+          <p><strong>代價：</strong>非同步掛鉤的執行結果無法同步影響當前決策；一次性掛鉤在配置檔中被自動移除，可能讓不知情的使用者困惑。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>外掛系統（Plugin System）</td>
+              <td>能力更強，可注入任意邏輯</td>
+              <td>安全邊界複雜，載入管理成本高</td>
+              <td>適合需要深度整合的場景；目前掛鉤已覆蓋多數自動化需求</td>
+            </tr>
+            <tr>
+              <td>全觸發（Always-fire）無匹配器</td>
+              <td>配置簡單，不需學習匹配語法</td>
+              <td>每個事件都觸發所有掛鉤，效能浪費且難以精準控制</td>
+              <td>掛鉤數量極少時可行，規模增長後匹配器必不可少</td>
+            </tr>
+            <tr>
+              <td>純同步執行（Sync-only）</td>
+              <td>執行順序可預測，除錯容易</td>
+              <td>耗時掛鉤阻塞主流程，使用體驗變差</td>
+              <td>所有掛鉤都很快時可行，但實務中常需背景執行</td>
+            </tr>
+            <tr>
+              <td>環境變數全開放（無 allowlist）</td>
+              <td>配置更簡單，不需逐一宣告</td>
+              <td>HTTP hook 可能洩漏敏感環境變數</td>
+              <td>安全性考量下不可採用；顯式 allowlist 是必要防護</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：Hook 超時阻塞主流程</h3>
+          <p><strong>症狀：</strong>同步掛鉤執行時間超過預期，使用者操作卡頓或無回應。</p>
+          <p><strong>防護：</strong>為 command hook 設定合理的 <code>timeout</code> 值；對可能耗時的操作使用 <code>async: true</code>，避免阻塞主線程。利用 <code>statusMessage</code> 顯示自訂 spinner 文字，讓使用者知道系統仍在運作。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：HTTP hook 洩漏環境變數</h3>
+          <p><strong>症狀：</strong>HTTP hook 在 POST 請求中帶出未預期的環境變數，導致機密外洩。</p>
+          <p><strong>防護：</strong>環境變數插值僅限顯式 allowlist 中列出的變數；HTTP hook 預設受限，不允許存取任意環境變數。配置審查時確認 allowlist 只包含必要項目。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：非同步 hook 狀態污染</h3>
+          <p><strong>症狀：</strong>背景執行的掛鉤修改了共享狀態（如檔案系統或全域變數），導致後續回合行為不可預測。</p>
+          <p><strong>防護：</strong>非同步掛鉤應設計為無副作用或僅操作隔離的資源。使用 <code>asyncRewake: true</code> 時，透過 exit code 控制是否需要模型介入，避免靜默污染。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>在 <code>settings.json</code> 新增一個 PreToolUse command hook：確認對應工具被呼叫時掛鉤確實觸發。</li>
+          <li>測試匹配器條件：修改 <code>if</code> 條件，確認只有符合 pattern 的工具調用才觸發掛鉤。</li>
+          <li>驗證 <code>async: true</code>：確認非同步掛鉤不阻塞主流程，主回合正常推進。</li>
+          <li>驗證 <code>once: true</code>：確認掛鉤第一次觸發後自動從配置中移除，不再重複執行。</li>
+          <li>測試 HTTP hook allowlist：故意引用未列入 allowlist 的環境變數，確認被拒絕。</li>
+          <li>模擬 hook 超時：設定極短 <code>timeout</code>，確認超時後主流程仍正常繼續。</li>
+        </ul>
+        <p class="explain-note">這六步涵蓋「觸發、匹配、非同步、一次性、安全、容錯」，是掛鉤配置的最低可接受驗證集。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="prompt-system.html">← 上一頁：提示系統</a>
+      <a href="terminal-ui.html">下一頁：終端 UI →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

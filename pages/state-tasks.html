@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>狀態與任務 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="07">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>狀態與任務：互動與背景工作並行</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>這一頁用 PromptSuggestion 做真實案例，從狀態欄位到互動行為，完整拆解一次「可見功能背後的執行路徑」。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p><code>promptSuggestion</code> 不是單純 UI 提示，而是跨越「回合尾端 hook、AppState、鍵盤互動、telemetry、speculation」的小型子系統。它適合拿來理解：狀態欄位如何驅動互動行為。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（PromptSuggestion 案例）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="pseudo"><code class="language-text">回合結束觸發 stop hook
+executePromptSuggestion 啟動
+檢查 suppress 條件（plan mode / pending permission / rate limit）
+generateSuggestion 產生候選文字
+filter 規則淘汰不合格內容
+寫入 appState.promptSuggestion
+UI 顯示 ghost text
+使用者 Tab 或 Right 接受，或直接輸入忽略</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[stopHooks turn end] --> B[executePromptSuggestion]
+  B --> C{suppress?}
+  C -->|yes| D[記錄 suppressed]
+  C -->|no| E[generateSuggestion]
+  E --> F[shouldFilterSuggestion]
+  F -->|drop| D
+  F -->|keep| G[set appState.promptSuggestion]
+  G --> H[Typeahead 顯示 ghost text]
+  H --> I{使用者互動}
+  I -->|Tab/Right| J[acceptedAt]
+  I -->|直接送出| K[ignored]</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>建議是「寫入狀態」而非「直接送出命令」。</li>
+            <li>可見 UI 行為依賴 <code>shownAt</code>/<code>acceptedAt</code> 兩個時間戳來判斷接受或忽略。</li>
+            <li>同一路徑同時服務 CLI 與 SDK telemetry，因此 suppression reason 必須可追蹤。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：先寫 AppState，再由 UI 消費</h3>
+          <p><strong>原因：</strong>把建議當成狀態，才能讓 REPL、Typeahead、紀錄事件共享同一來源。</p>
+          <p><strong>代價：</strong>狀態欄位變多，需維護 reset 與生命週期一致性。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：明確 suppression gate</h3>
+          <p><strong>原因：</strong>在權限提示、plan mode、限流時強推建議會干擾主流程。</p>
+          <p><strong>代價：</strong>邏輯分支增加，需維護 suppressed reason 的語義穩定。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：用 forked agent 產生建議並守住 cache 約束</h3>
+          <p><strong>原因：</strong>降低主回合負擔，同時利用既有上下文。</p>
+          <p><strong>代價：</strong>參數不能亂改，否則 cache hit rate 會顯著下降。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>直接在 UI 端規則推導建議</td>
+              <td>不需額外模型請求</td>
+              <td>上下文理解弱，容易給錯建議</td>
+              <td>僅適合 very simple command hints</td>
+            </tr>
+            <tr>
+              <td>每次都自動接受建議</td>
+              <td>操作步驟最少</td>
+              <td>高誤觸風險，破壞使用者控制權</td>
+              <td>與目前互動哲學衝突，不採用</td>
+            </tr>
+            <tr>
+              <td>只記錄 accepted，不記錄 ignored</td>
+              <td>資料模型較簡單</td>
+              <td>無法評估建議品質與干擾程度</td>
+              <td>不利迭代，不採用</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：建議內容是 meta 文字或錯誤訊息</h3>
+          <p><strong>症狀：</strong>出現「nothing to suggest」等非使用者語句。</p>
+          <p><strong>防護：</strong>在 <code>shouldFilterSuggestion</code> 做多重過濾規則。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：使用者已在輸入，但 ghost text 仍覆蓋體驗</h3>
+          <p><strong>症狀：</strong>輸入中看到不相關建議。</p>
+          <p><strong>防護：</strong>只有在 input 為空時顯示建議；提交後 reset 狀態。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：speculation 與新輸入衝突</h3>
+          <p><strong>症狀：</strong>背景推演結果與使用者新方向不一致。</p>
+          <p><strong>防護：</strong>接受/重置建議時中止 speculation，避免污染後續狀態。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>連續完成兩輪對話：確認第二輪後才會產生建議（early conversation gate）。</li>
+          <li>打開 plan mode 或觸發 permission prompt：確認建議被抑制且不干擾主互動。</li>
+          <li>空輸入按 <code>Tab</code>/<code>Right</code>：確認建議被接受並記錄接受路徑。</li>
+          <li>直接輸入不同內容送出：確認被記為 ignored 並清空舊建議。</li>
+        </ul>
+        <p class="explain-note">如果你要調整建議規則，至少重新驗證「抑制、接受、忽略」三條路徑。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="services-mcp.html">← 上一頁</a>
+      <a href="permissions-modes.html">下一頁：模式與權限 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>提示系統 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="11">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>提示系統：分層控制模型行為</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>提示不是一整塊文字，而是由多層控制面組成的架構。理解每一層的職責與時機，才能精準調校模型行為。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>Claude Code 的提示並非一整塊靜態文字，而是由多層控制面組成的架構。最外層是系統提示組裝（system prompt assembly），定義基線行為與動態注入區段；中間層包含工具提示、技能指令與記憶注入，各自在特定時機觸發；最內層是側查詢（side-query）與子代理提示，執行高度聚焦的分析任務。整體共有 8 大提示家族，涵蓋從全域行為到單一工具的完整控制範圍。理解這套分層結構，才能在對的層級做對的調校，避免提示之間互相衝突。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <p>當使用者輸入一個回合後，提示系統會按照以下路徑組裝並執行：</p>
+        <pre class="pseudo"><code class="language-text">input: 使用者訊息
+1. 組裝系統提示（靜態基線 + 動態注入）
+2. 注入記憶與指令（CLAUDE.md、相關記憶篩選）
+3. 送入主模型執行
+4. 主模型依需求觸發：
+   a. 工具提示 → 工具呼叫
+   b. 側查詢 → 聚焦分析（分類、摘要、風險評估）
+   c. 技能/指令 → 多階段工作流程
+   d. 子代理 → 專責代理執行</code></pre>
+        <pre class="mermaid">flowchart LR
+  A[使用者回合] --> B[系統提示組裝]
+  B --> C[主模型執行]
+  C --> D[工具提示與工具呼叫]
+  C --> E[側查詢：聚焦提示]
+  C --> F[技能/指令提示擴展]
+  C --> G[專責子代理]</pre>
+        <p class="explain-note">每一個分支都有獨立的提示控制面，不會與系統提示混在一起。</p>
+
+        <h3>8 大提示家族</h3>
+        <pre class="mermaid">flowchart TD
+  P[提示系統] --> P1[系統提示組裝]
+  P --> P2[記憶與指令注入]
+  P --> P3[壓縮/摘要提示]
+  P --> P4[建議與工作階段提示]
+  P --> P5[工具行為提示]
+  P --> P6[側查詢提示]
+  P --> P7[指令與技能提示]
+  P --> P8[代理特化提示]</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>系統提示是所有下游提示品質的基礎，必須精確且無衝突。</li>
+            <li>工具提示在工具 schema 暴露與呼叫決策時執行，是操作護欄。</li>
+            <li>側查詢提示是任務專用的，精確度與輸出格式比創意更重要。</li>
+            <li>記憶注入在回合開始時執行，需篩選高訊號記憶避免雜訊。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：分層提示架構而非單一提示</h3>
+          <p><strong>原因：</strong>單一巨型提示會在不同職責之間產生衝突（例如安全規則與工具使用指引互相干擾），且難以局部更新。分層設計讓每一層各司其職：系統提示定義基線、工具提示嵌入護欄、側查詢提示聚焦單一任務。</p>
+          <p><strong>代價：</strong>提示散佈在多個檔案中，需要清楚的命名慣例與文件說明才能追蹤。新增提示時必須確認不與其他層級衝突。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：靜態/動態分割策略</h3>
+          <p><strong>原因：</strong>系統提示使用 <code>SYSTEM_PROMPT_DYNAMIC_BOUNDARY</code> 將穩定指令文字（靜態區段）與會話/環境/功能開關相關內容（動態區段）分離。靜態區段可被 API 快取重複使用，大幅減少 token 消耗與延遲。</p>
+          <p><strong>代價：</strong>開發者必須判斷新增內容屬於靜態或動態，分類錯誤會導致快取失效或指令過時。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：工具提示嵌入操作護欄</h3>
+          <p><strong>原因：</strong>工具提示不只描述功能，還明確編碼使用契約與禁止行為（例如「不得使用 AskUserQuestion 來要求計畫核准，應使用 ExitPlanMode」）。這讓模型在工具選擇階段就受到約束，而非事後修正。</p>
+          <p><strong>代價：</strong>工具提示的文字量較大，每次工具 schema 暴露都會消耗額外 token。護欄措辭不夠強時容易被模型忽略。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>單一巨型提示（所有指令合併為一塊）</td>
+              <td>簡單直覺，所有規則集中管理</td>
+              <td>職責衝突、難以局部更新、快取效率差</td>
+              <td>適合極簡應用；Claude Code 的複雜度已超過此方案上限</td>
+            </tr>
+            <tr>
+              <td>硬編碼注入（所有指令寫死在程式碼中）</td>
+              <td>無需動態組裝邏輯，行為完全可預測</td>
+              <td>無法依環境/功能調整，每次修改需重新部署</td>
+              <td>適合行為固定的工具；Claude Code 需要依會話/環境動態調整</td>
+            </tr>
+            <tr>
+              <td>自由格式輸出（不強制輸出結構）</td>
+              <td>模型回應更自然，不受格式約束</td>
+              <td>下游程式碼無法可靠解析，錯誤難以偵測</td>
+              <td>適合面向人類的對話；機器消費路徑必須使用結構化輸出</td>
+            </tr>
+            <tr>
+              <td>抽象指導語（「請謹慎行事」）</td>
+              <td>撰寫簡單，適用範圍廣</td>
+              <td>模型解讀不一致，行為不可測試</td>
+              <td>適合低風險場景；高精度任務需要操作性語言（精確命令、判定標準）</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：權限邊界模糊</h3>
+          <p><strong>症狀：</strong>提示在應該只做驗證的路徑上編輯了檔案，或在唯讀分析中觸發了寫入操作。</p>
+          <p><strong>防護：</strong>在提示中明確使用「MUST NOT」約束與禁止工具清單，讓模型在決策階段就被限制，而非依賴事後檢查。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：輸出格式鬆散</h3>
+          <p><strong>症狀：</strong>預期收到 JSON 或判定行（如 <code>VERDICT: PASS|FAIL</code>），模型卻回傳散文式回應，導致下游解析失敗。</p>
+          <p><strong>防護：</strong>強制要求嚴格的 JSON schema 或精確的行格式，並在提示中加入輸出範例。在驗證、會話標題（由 <code>SESSION_TITLE_PROMPT</code> 產生的短標題）、記憶篩選等機器消費路徑上必須落實。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：記憶選擇過於廣泛</h3>
+          <p><strong>症狀：</strong>記憶召回充滿低訊號雜訊，模型被不相關的歷史記憶干擾，導致回應品質下降。</p>
+          <p><strong>防護：</strong>在記憶篩選提示中設定選擇性標準，明確接受空列表（「寧可不選，也不要選錯」），並限制召回數量上限。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 4：工作流程分支混淆</h3>
+          <p><strong>症狀：</strong>模型透過錯誤的工具請求計畫核准（例如用 AskUserQuestion 取代 ExitPlanMode）。</p>
+          <p><strong>防護：</strong>在工具提示中編碼明確的路由規則：「不得使用 X 來執行 Y」，讓模型在工具選擇時就被導正。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 5：長工作階段摘要偏移</h3>
+          <p><strong>症狀：</strong>壓縮輸出遺漏了近期使用者意圖，模型在恢復時失去脈絡。</p>
+          <p><strong>防護：</strong>使用「僅近期」變體提示，並要求結構化區段（如 <code>&lt;summary&gt;</code>）確保關鍵資訊不被省略。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <h3>合併前檢查</h3>
+        <ul>
+          <li>此提示是否掛載在明確命名的執行路徑上？</li>
+          <li>若輸出由程式碼消費，輸出格式是否為確定性格式（JSON / 判定行 / 結構化區段）？</li>
+          <li>禁止行為是否已明確寫出（MUST NOT / 禁止工具清單）？</li>
+          <li>已知的失敗模式是否已在提示文字中記載？</li>
+          <li>是否與其他層級已有的規則重複？</li>
+          <li>措辭是否足夠精簡以減少 token 膨脹？</li>
+        </ul>
+        <h3>合併後驗證</h3>
+        <ul>
+          <li>在真實流程中驗證觸發條件是否正確。</li>
+          <li>驗證輸出解析在成功與失敗案例上都能正常運作。</li>
+          <li>抽查提示中聲稱處理的邊界案例是否確實被覆蓋。</li>
+        </ul>
+        <p class="explain-note">這份清單對應漸進式提示設計模板（Progressive Prompt Design Template）的六個層級：目標（Objective）→ 觸發與範圍（Trigger &amp; Scope）→ 程序（Procedure）→ 輸出契約（Output Contract）→ 失敗控制（Failure Controls）→ 證據標準（Evidence Standard）。新增或改寫提示時，按此順序由淺入深逐層填寫。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="agent-and-extension.html">← 上一頁：代理與擴充</a>
+      <a href="hooks-automation.html">下一頁：Hooks 與自動化 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

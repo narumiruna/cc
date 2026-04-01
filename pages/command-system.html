@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>指令系統 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="03">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>指令系統：語義入口層</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>命令層處理「使用者要做什麼」，不是「底層怎麼做」。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>指令系統是 Claude Code 的「語義入口層」。使用者輸入 <code>/help</code>、<code>/status</code> 等斜線命令時，系統會在已註冊的命令清單中比對，找到對應的 Command 物件，然後委派給工具層或提示流程執行。命令本身不做重邏輯——它只負責「理解使用者意圖」並路由到正確的執行層。feature gate 機制讓某些命令只在特定條件下可見。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="snippet"><code class="language-ts">const COMMANDS = memoize((): Command[] => [
+  addDir,
+  help,
+  status,
+  ...(feature('VOICE_MODE') ? [voiceCommand] : []),
+])</code></pre>
+        <p class="explain-note">命令清單透過 memoize 快取，只在首次呼叫時建立；feature gate 決定條件式命令是否加入清單。</p>
+        <pre class="pseudo"><code class="language-text">建立命令清單（memoize 快取）
+依 feature gate 決定附加命令
+使用者輸入 /xxx
+在命令清單中比對對應 Command 物件
+通過 feature gate 檢查
+委派到工具層或服務層執行
+回傳結果給使用者</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[使用者輸入 /xxx] --> B[slash command 解析]
+  B --> C[命令清單比對]
+  C --> D{feature gate 檢查}
+  D -->|通過| E[委派到工具/服務]
+  D -->|未通過| F[命令不可見，回傳提示]
+  E --> G[回傳結果]</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>命令清單只在首次存取時建立，後續呼叫直接回傳快取結果。</li>
+            <li>feature gate 在清單建立階段就決定命令是否存在，而非執行時才檢查。</li>
+            <li>命令物件只做路由與意圖解析，不直接執行 I/O 或呼叫外部 API。</li>
+            <li>解析失敗時應回傳友善提示，不可讓例外直接拋給使用者。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：命令清單採 memoize 快取</h3>
+          <p><strong>原因：</strong>命令清單在應用程式生命週期內不會改變，每次重建浪費運算資源。透過 memoize 確保只建立一次，後續呼叫直接回傳快取結果，降低重複成本。</p>
+          <p><strong>代價：</strong>如果 feature gate 狀態在執行期間動態改變，快取的清單不會自動更新，可能導致命令可見性與實際狀態不一致。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：用 feature gate 控制可見性而非移除程式碼</h3>
+          <p><strong>原因：</strong>保留完整的命令實作程式碼，只透過 feature gate 決定是否將命令加入清單。這讓實驗性功能可以隨時啟用或關閉，不需要修改程式碼或重新部署。</p>
+          <p><strong>代價：</strong>未啟用的命令程式碼仍存在於打包產物中，增加了 bundle 大小；維護者也需要追蹤哪些 feature flag 對應哪些命令。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：命令只做路由，不做 I/O</h3>
+          <p><strong>原因：</strong>命令層的職責是理解使用者意圖並轉發到正確的執行層。如果命令直接執行 I/O 或呼叫外部 API，會導致命令層與工具層/服務層職責混淆，降低可測試性與可維護性。</p>
+          <p><strong>代價：</strong>增加一層間接呼叫的複雜度，簡單操作也需要經過完整的委派流程。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <caption>替代方案比較表</caption>
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>動態註冊（外掛式命令載入）</td>
+              <td>新命令不需修改核心清單，擴充性高</td>
+              <td>註冊順序難控制，除錯困難，啟動時需掃描所有外掛</td>
+              <td>外掛生態成熟後可考慮；目前命令數量有限，靜態清單更直觀可控</td>
+            </tr>
+            <tr>
+              <td>命令直接執行（不委派到工具層）</td>
+              <td>呼叫路徑短，減少間接層級，實作簡單</td>
+              <td>命令與執行邏輯耦合，無法獨立測試命令解析；職責邊界模糊</td>
+              <td>極輕量工具可行；目前系統需要清楚的命令/工具/服務分層</td>
+            </tr>
+            <tr>
+              <td>編譯時排除（取代 feature gate）</td>
+              <td>打包產物更小，未啟用的命令完全不存在</td>
+              <td>切換功能需重新建置與部署，無法在執行期動態調整</td>
+              <td>對 bundle 大小極度敏感時可考慮；目前彈性與開發速度優先</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：使用者輸入未知命令</h3>
+          <p><strong>症狀：</strong>使用者輸入 <code>/foobar</code> 等不存在的斜線命令，命令清單比對不到任何 Command 物件，系統沒有回應或拋出未處理的例外。</p>
+          <p><strong>防護：</strong>在命令比對流程中加入 fallback 邏輯：比對失敗時回傳友善的錯誤提示，列出可用的命令清單供使用者參考，避免靜默失敗。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：feature gate 狀態不一致導致命令幽靈可見</h3>
+          <p><strong>症狀：</strong>feature gate 在清單建立後才改變狀態，導致快取中的命令清單與實際 feature 狀態不同步——使用者看到已被關閉的命令，或看不到已開啟的命令。</p>
+          <p><strong>防護：</strong>明確約定 feature gate 只在應用程式啟動時讀取一次；如需支援動態切換，提供清除 memoize 快取的機制並在 feature 狀態變更時觸發清單重建。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：命令委派失敗但缺乏回饋</h3>
+          <p><strong>症狀：</strong>命令成功比對並委派到工具層或服務層，但目標執行層拋出例外或回傳錯誤，命令層未捕獲也未向使用者顯示任何訊息。</p>
+          <p><strong>防護：</strong>命令層在委派時以 try/catch 包裹呼叫，捕獲下游錯誤後轉換為使用者可理解的提示訊息，並記錄錯誤細節供開發者除錯。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>確認 <code>/help</code> 正確列出所有目前可用的命令，且清單與 COMMANDS 陣列一致。</li>
+          <li>確認關閉特定 feature flag（如 <code>VOICE_MODE</code>）時，對應的命令從清單中消失，使用者無法觸發。</li>
+          <li>確認輸入不存在的命令（如 <code>/foobar</code>）時，系統回傳友善的錯誤提示而非靜默失敗。</li>
+          <li>確認命令委派到工具層後，工具層錯誤能被捕獲並轉換為使用者可讀的訊息。</li>
+          <li>確認 memoize 快取生效：多次呼叫 COMMANDS 回傳同一參考（reference equality）。</li>
+        </ul>
+        <p class="explain-note">前三項是最低可接受驗證集，後兩項針對快取與錯誤傳播做回歸測試。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="runtime-entry.html">← 上一頁</a>
+      <a href="tool-system.html">下一頁：工具系統 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

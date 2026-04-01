@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>啟動流程 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="02">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>啟動流程：從 CLI 進入互動系統</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>這頁看清楚系統怎麼從命令列進到完整初始化。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>啟動流程是整個系統的入口邏輯，它負責決定「這次執行走快速路徑還是完整初始化」。快速路徑用於 <code>--version</code>、<code>--help</code> 等即時回覆；完整路徑會依序載入 profiler、主模組、設定檔、上下文工廠，最後進入互動迴圈。理解啟動流程的效能分層策略，是掌握整個系統的第一步。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="snippet"><code class="language-ts">if (args[0] === '--version') {
+  console.log(VERSION)
+  return
+}
+const { profileCheckpoint } = await import('../utils/startupProfiler.js')
+profileCheckpoint('cli_entry')
+await import('../main.js')</code></pre>
+        <p class="explain-note">先用快速路徑攔截最輕量的請求，避免整個系統都載入；完整路徑才啟動 profiler 並進入主模組。</p>
+        <pre class="pseudo"><code class="language-text">讀取 CLI 參數
+如果是快速路徑（--version / --help）:
+  直接回應並結束
+否則:
+  載入 profiler，記錄 cli_entry 時間點
+  載入主模組 main.js
+  載入設定檔與全域組態
+  建立上下文工廠（context factory）
+  進入互動迴圈（REPL）</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[CLI 參數輸入] --> B{快速路徑檢查}
+  B -->|是: --version / --help| C[立即回應並結束]
+  B -->|否| D[載入 profiler]
+  D --> E[記錄 cli_entry checkpoint]
+  E --> F[載入主模組 main.js]
+  F --> G[載入設定檔]
+  G --> H[建立上下文工廠]
+  H --> I[進入互動迴圈 REPL]</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>入口只做參數解析與分流，不載入任何功能模組。</li>
+            <li>profiler 在入口層就啟動，確保完整記錄啟動過程。</li>
+            <li>主模組透過 dynamic import 延遲載入，縮短快速路徑回應時間。</li>
+            <li>設定檔與上下文工廠在主模組內依序初始化，順序不可調換。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：CLI 入口只做分流，不做初始化</h3>
+          <p><strong>原因：</strong>入口檔案的唯一職責是判斷走快速路徑還是完整路徑。把初始化邏輯留給主模組，保持入口輕量且啟動速度最快。</p>
+          <p><strong>代價：</strong>新增快速路徑指令時必須同步更新入口的分流邏輯，維護者需注意入口與主模組的職責邊界。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：使用 dynamic import 延遲載入重模組</h3>
+          <p><strong>原因：</strong>用 <code>await import()</code> 確保只有真正需要完整功能時才載入主模組。<code>--version</code> 等快速路徑完全不觸發重模組載入，回應時間可控制在毫秒等級。</p>
+          <p><strong>代價：</strong>動態載入讓靜態分析工具難以追蹤完整依賴樹，IDE 的跳轉與自動補全可能失效。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：profiler 在入口層就開始記錄啟動效能</h3>
+          <p><strong>原因：</strong>啟動效能的瓶頸往往在入口到主模組載入完成之間。在入口層就啟動 profiler 並記錄 <code>cli_entry</code> checkpoint，才能完整測量這段關鍵路徑。</p>
+          <p><strong>代價：</strong>profiler 本身也是一次 dynamic import，會為快速路徑增加微小延遲（但只影響完整路徑）。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <caption>替代方案比較表</caption>
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>全量同步載入（啟動時載入所有模組）</td>
+              <td>程式碼路徑單純，無動態載入複雜度</td>
+              <td>冷啟動慢，<code>--version</code> 也要等完整初始化</td>
+              <td>模組體積小時可行；目前系統規模過大，快速路徑延遲無法接受</td>
+            </tr>
+            <tr>
+              <td>入口直接初始化（不做分層）</td>
+              <td>邏輯集中，不需跨檔案追蹤</td>
+              <td>入口檔案膨脹，所有請求都承受完整初始化成本</td>
+              <td>極小型工具可行；目前入口職責應保持輕量分流</td>
+            </tr>
+            <tr>
+              <td>profiler 全程啟用（含快速路徑）</td>
+              <td>所有路徑皆有效能數據，診斷更完整</td>
+              <td>快速路徑多一次 dynamic import，增加不必要延遲</td>
+              <td>偵錯模式下可啟用；正式環境只在完整路徑啟用即可</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：參數解析錯誤導致路由失敗</h3>
+          <p><strong>症狀：</strong>使用者輸入未預期的參數格式（如 <code>--versoin</code> 拼寫錯誤），導致既未走快速路徑也未正確進入完整初始化。</p>
+          <p><strong>防護：</strong>在入口層加入預設的 fallback 邏輯：不符合快速路徑條件的參數一律走完整路徑，由主模組統一處理無效參數並輸出提示。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：dynamic import 模組解析失敗</h3>
+          <p><strong>症狀：</strong><code>await import('../main.js')</code> 拋出 <code>ERR_MODULE_NOT_FOUND</code> 或語法錯誤，使用者看到未處理的例外堆疊。</p>
+          <p><strong>防護：</strong>在入口層以 try/catch 包裹 dynamic import，捕獲載入失敗後輸出可讀的錯誤訊息與排查建議（如檢查安裝是否完整）。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：設定檔載入超時或格式錯誤</h3>
+          <p><strong>症狀：</strong>設定檔路徑不存在、JSON 格式錯誤或檔案系統回應過慢，導致初始化卡住或拋出解析例外。</p>
+          <p><strong>防護：</strong>設定檔載入加入超時機制與格式驗證；當設定檔無法載入時，使用合理的預設值繼續啟動，並向使用者發出警告。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>確認 <code>--version</code> 回應時間 &lt; 100ms，不觸發完整初始化路徑。</li>
+          <li>確認 profiler 的 <code>cli_entry</code> checkpoint 有正確記錄，可在日誌中查閱。</li>
+          <li>確認互動模式正確進入：完整路徑走完後，使用者能看到互動提示符並正常輸入。</li>
+          <li>模擬主模組載入失敗：確認 try/catch 有攔截錯誤，輸出可讀的錯誤訊息。</li>
+          <li>模擬設定檔格式錯誤：確認系統以預設值繼續啟動，並顯示警告。</li>
+        </ul>
+        <p class="explain-note">前三項是最低可接受驗證集，後兩項針對失敗路徑做回歸測試。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="quickstart.html">← 上一頁</a>
+      <a href="command-system.html">下一頁：指令系統 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>回合引擎 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="05">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>回合引擎：一則訊息如何走完整流程</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>這一頁以執行路徑為主軸，搭配設計取捨與實作驗證，讓你不只看懂流程，也能評估改動風險。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>回合引擎（QueryEngine）負責把「使用者訊息」變成「可控的執行回合」。它不只送 API，還要協調工具權限、訊息累積、usage 計算、錯誤恢復與持久化。你可以把它視為單回合的交通總站。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="pseudo"><code class="language-text">使用者提交 prompt
+建立本回合 context（工具、權限、快取參數）
+進入 query loop
+模型輸出可能觸發 tool_use
+工具結果回寫 messages 並進入下一輪 loop
+達到完成邊界後統一收尾（usage / transcript / hooks）</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[使用者輸入] --> B[submitMessage]
+  B --> C[建立回合 context]
+  C --> D[query loop]
+  D --> E{是否呼叫工具}
+  E -->|是| F[tool run + result]
+  F --> D
+  E -->|否| G[完成訊息]
+  G --> H[usage/持久化/stop hooks]</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>真正的「完成」不是模型輸出一句話，而是收尾步驟完成。</li>
+            <li>錯誤處理有分層：可恢復錯誤留在回合內，致命錯誤才中斷整體。</li>
+            <li>回合狀態會影響後續功能（例如 suggestion、memory extraction）。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：把回合責任集中在引擎層</h3>
+          <p><strong>原因：</strong>避免工具層各自管理 usage、持久化與結束條件，導致行為分裂。</p>
+          <p><strong>代價：</strong>引擎會變成高複雜度模組，改動需要更嚴格回歸測試。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：回合內允許多次 tool/model 循環</h3>
+          <p><strong>原因：</strong>真實任務常需要工具結果再推理，不可能單次推論結束。</p>
+          <p><strong>代價：</strong>需要明確 completion boundary，否則容易迴圈失控。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：stop hooks 在回合尾端統一觸發</h3>
+          <p><strong>原因：</strong>保證 hook 看到的是完整回合上下文，而不是中途片段。</p>
+          <p><strong>代價：</strong>hook 會成為尾延遲來源，需要異步與超時控制策略。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>把執行拆成多個小協調器</td>
+              <td>單檔更乾淨，責任更局部</td>
+              <td>跨協調器狀態傳遞成本高</td>
+              <td>目前回合資料耦合高，拆分前要先穩定介面</td>
+            </tr>
+            <tr>
+              <td>工具層自行處理錯誤與持久化</td>
+              <td>工具可獨立優化</td>
+              <td>行為不一致，除錯困難</td>
+              <td>除非有嚴格 shared contract，否則風險過高</td>
+            </tr>
+            <tr>
+              <td>每次模型輸出都立即落盤</td>
+              <td>資料最完整</td>
+              <td>I/O 負擔高，互動延遲增加</td>
+              <td>除非改成分層緩衝，否則不適合主路徑</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：prompt 過長造成回合中斷</h3>
+          <p><strong>症狀：</strong>模型拒絕處理或輸出錯誤事件。</p>
+          <p><strong>防護：</strong>在回合層做可恢復錯誤分流，避免直接崩潰 UI。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：工具權限對話卡住</h3>
+          <p><strong>症狀：</strong>等待 permission prompt，使用者體感像「無回應」。</p>
+          <p><strong>防護：</strong>把 pending permission 狀態顯式化，並阻擋不合理後續動作。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：回合尾端 hook 失敗污染主流程</h3>
+          <p><strong>症狀：</strong>主回覆完成但後續狀態錯亂。</p>
+          <p><strong>防護：</strong>hook 走非阻塞與錯誤隔離，僅回報失敗摘要不破壞主回合。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>送出一個不需工具的 prompt：確認回合正常完成並持久化。</li>
+          <li>送出會觸發工具的 prompt：確認 loop 可正確往返並收斂。</li>
+          <li>製造可恢復錯誤（例如限制條件）：確認引擎能回報而非直接崩潰。</li>
+          <li>檢查 stop hook 副作用：確認主回覆完成後，附加功能才執行。</li>
+        </ul>
+        <p class="explain-note">這四步對應「主路徑、工具路徑、錯誤路徑、尾端路徑」，是最低可接受驗證集。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="tool-system.html">← 上一頁</a>
+      <a href="services-mcp.html">下一頁：服務與 MCP →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

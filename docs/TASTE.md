@@ -1,0 +1,1 @@
+- Prefer progressive depth explanations (from fundamentals to advanced details) for architecture tutorials on the project website.

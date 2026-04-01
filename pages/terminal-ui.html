@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>終端 UI | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="13">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>終端 UI：用 React 渲染終端機介面</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>了解 Claude Code 如何自建一套完整的 React 終端渲染框架——從自訂調和器、Yoga Flexbox 排版到雙緩衝差異更新——讓終端機也能擁有宣告式 UI。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>Claude Code 沒有瀏覽器，卻實作了一套完整的 React 渲染管線來驅動終端機介面。它透過<strong>自訂 React 調和器</strong>（Custom Reconciler）將元件樹轉換成虛擬 DOM，再由 Facebook 的 <strong>Yoga 引擎</strong>進行 Flexbox 排版，最終經由<strong>雙緩衝差異引擎</strong>只輸出有變動的 ANSI 跳脫序列到 TTY。這套架構讓開發者可以用宣告式 JSX 撰寫終端 UI，同時享有增量渲染與記憶體池化帶來的高效能。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（渲染管線）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="pseudo"><code class="language-text">input: React 元件樹更新
+1. React 調和器比對新舊元件樹
+2. 將變更分為三類：Styles / Text styles / Event handlers
+3. 標記 dirty flag 並向上級聯
+4. Yoga 引擎只對 dirty 子樹重新排版
+5. Output Builder 產生 2D Cell 陣列（Screen Buffer）
+6. Diff Engine 比對前後兩幀
+7. 只輸出差異部分的 ANSI 跳脫序列到 TTY</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[React 元件] --> B[自訂 React 調和器]
+  B --> C[虛擬 DOM 樹]
+  C --> D{Dirty Flag 檢查}
+  D -->|有變更| E[Yoga Flexbox 排版]
+  D -->|無變更| F[跳過排版]
+  E --> G[Output Builder]
+  F --> G
+  G --> H[Screen Buffer — 2D Cell 陣列]
+  H --> I[Diff Engine 比對前後幀]
+  I --> J[ANSI 跳脫序列 → TTY]</pre>
+        <p class="explain-note">整條管線的核心思想：只重算有變動的部分，只輸出有差異的像素（Cell）。</p>
+
+        <h3>虛擬 DOM 元素類型</h3>
+        <pre class="snippet"><code class="language-ts">// 自訂調和器支援的元素類型
+type InkElementType =
+  | 'ink-root'          // 根節點
+  | 'ink-box'           // 容器（對應 Yoga 佈局節點）
+  | 'ink-text'          // 文字節點
+  | 'ink-virtual-text'  // 虛擬文字（不佔佈局空間）
+  | 'ink-link'          // 超連結
+  | 'ink-progress'      // 進度條
+  | 'ink-raw-ansi'      // 原始 ANSI 透傳</code></pre>
+
+        <h3>Screen Buffer — 2D Cell 模型</h3>
+        <pre class="mermaid">flowchart LR
+  subgraph Cell
+    direction TB
+    C1[char: 字元]
+    C2[width: 正常 / 寬字元]
+    C3[styleId: 樣式池索引]
+    C4[hyperlink: 連結池索引]
+  end
+  subgraph 記憶體池
+    P1[CharPool]
+    P2[StylePool]
+    P3[HyperlinkPool]
+  end
+  C1 -.-> P1
+  C3 -.-> P2
+  C4 -.-> P3</pre>
+        <p class="explain-note">三個 interning pool 避免重複字串分配，大幅降低 GC 壓力。</p>
+
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>調和器追蹤三類變更：佈局樣式（Yoga）、文字樣式（色彩）、事件處理器。</li>
+            <li>Dirty flag 從子節點向上級聯，確保父節點知道需要重排。</li>
+            <li>雙緩衝（Double Buffering）：前後兩幀交換，Diff Engine 只輸出差異。</li>
+            <li>Blit 優化：未變動區域直接複製，跳過重繪。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：自建 React 調和器而非直接操作 ANSI</h3>
+          <p><strong>原因：</strong>終端 UI 的狀態管理與瀏覽器 UI 本質相同——都是「狀態變更 → 最小化重繪」。使用 React 調和器可以沿用宣告式元件模型，開發者寫 JSX 即可，不需手動追蹤游標位置與清除邏輯。</p>
+          <p><strong>代價：</strong>必須自行維護一整套調和器與虛擬 DOM 實作，複雜度遠高於直接印出 ANSI 字串。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：使用 Yoga 做 Flexbox 排版</h3>
+          <p><strong>原因：</strong>Yoga 是 Facebook 開源的跨平台 Flexbox 引擎，已在 React Native 驗證過穩定性。用它來處理終端的行列排版，可以直接套用 Web 開發者熟悉的 <code>flexDirection</code>、<code>padding</code>、<code>margin</code> 等語意。</p>
+          <p><strong>代價：</strong>Yoga 是原生 C++ 綁定，帶來 FFI 成本與潛在的記憶體洩漏風險（需世代重置模式應對）。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：雙緩衝加 Blit 優化</h3>
+          <p><strong>原因：</strong>終端輸出的瓶頸是 I/O——每次全畫面重繪會產生大量 ANSI 序列，造成閃爍與延遲。雙緩衝讓前後兩幀交替使用，Diff Engine 只輸出有差異的 Cell，Blit 則直接複製未變動區域，大幅減少寫入量。</p>
+          <p><strong>代價：</strong>選取範圍覆蓋（Selection overlay）會「汙染」幀資料，迫使該區域放棄 Blit 而改為完整重繪。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>直接輸出 ANSI 跳脫序列</td>
+              <td>零依賴、啟動快、實作簡單</td>
+              <td>狀態管理全靠手動，複雜 UI 難以維護</td>
+              <td>適合極簡 CLI 工具，不適合有互動式多區塊介面的應用</td>
+            </tr>
+            <tr>
+              <td>ncurses / blessed</td>
+              <td>成熟的終端 UI 函式庫，跨平台支援好</td>
+              <td>命令式 API，無宣告式元件模型；blessed 已停止維護</td>
+              <td>需要底層終端控制時可作為補充，但無法取代元件化開發體驗</td>
+            </tr>
+            <tr>
+              <td>標準 Ink（不修改）</td>
+              <td>社群維護、文件齊全、生態系豐富</td>
+              <td>效能不足以應付高頻更新；缺少 CJK 寬字元、雙緩衝等需求</td>
+              <td>小型 CLI 工具適用；Claude Code 的規模需要深度客製</td>
+            </tr>
+            <tr>
+              <td>Web 技術（Electron / 瀏覽器）</td>
+              <td>完整的 CSS 排版與 DOM API</td>
+              <td>啟動重、記憶體佔用高、脫離終端環境</td>
+              <td>適合需要圖形化的桌面應用，不適合嵌入終端的工作流</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：Yoga 原生綁定記憶體洩漏</h3>
+          <p><strong>症狀：</strong>長時間執行後記憶體持續增長，最終導致 OOM 或嚴重效能衰退。</p>
+          <p><strong>防護：</strong>採用世代重置模式（Generational Reset）——定期釋放整棵 Yoga 節點樹並重建，避免原生綁定累積未回收的記憶體。每次重置時機與 React 調和器的完整重渲染對齊。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：寬字元（CJK / Emoji）排版錯位</h3>
+          <p><strong>症狀：</strong>中文字、日文字或 Emoji 佔據兩個字元寬度，但佈局引擎只計算一個寬度，導致後續內容偏移、邊框錯位。</p>
+          <p><strong>防護：</strong>Screen Buffer 的 Cell 模型明確記錄每個字元的 <code>width</code>（正常 / 寬字元），排版時以實際顯示寬度而非字元數計算。寬字元的第二格填入佔位 Cell，避免被後續字元覆蓋。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：Dirty Flag 級聯風暴</h3>
+          <p><strong>症狀：</strong>單一底層節點的頻繁更新導致 dirty flag 不斷向上傳播，觸發整棵樹重排，增量渲染退化為全量渲染，FPS 驟降。</p>
+          <p><strong>防護：</strong>批次合併更新（batching）——在同一幀內累積所有變更，只做一次向上級聯與排版計算。搭配 <code>requestAnimationFrame</code> 風格的排程機制，確保每幀最多觸發一次完整排版。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>渲染基本元件：確認 <code>Box</code>、<code>Text</code> 元件能正確顯示於終端，排版符合 Flexbox 語意。</li>
+          <li>驗證增量渲染：只更新單一元件的文字，確認 Diff Engine 只輸出該區域的 ANSI 序列，而非全畫面重繪。</li>
+          <li>寬字元測試：輸入中文、日文、Emoji，確認佈局寬度正確、邊框未錯位。</li>
+          <li>記憶體穩定性：長時間執行（模擬多次重渲染），確認記憶體用量穩定，世代重置正常觸發。</li>
+          <li>Blit 優化驗證：比對有無 Blit 時的 ANSI 輸出量，確認未變動區域被跳過。</li>
+          <li>Selection overlay 回退：啟用選取覆蓋後，確認受影響區域正確放棄 Blit 並完整重繪。</li>
+        </ul>
+        <p class="explain-note">這六步涵蓋「基本渲染、增量更新、寬字元、記憶體、Blit、選取回退」，是渲染管線變更的最低可接受驗證集。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="hooks-automation.html">← 上一頁：Hooks 與自動化</a>
+      <a href="../index.html">回首頁 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

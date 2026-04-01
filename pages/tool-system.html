@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工具系統 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="04">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>工具系統：能力怎麼被公開</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>工具契約與工具清單是兩件事：一個定義行為，一個決定是否可用。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+        <a data-page="01" href="quickstart.html">快速起步</a>
+        <a data-page="02" href="runtime-entry.html">啟動流程</a>
+        <a data-page="03" href="command-system.html">指令系統</a>
+        <a data-page="04" href="tool-system.html">工具系統</a>
+        <a data-page="05" href="query-engine.html">回合引擎</a>
+        <a data-page="06" href="services-mcp.html">服務與 MCP</a>
+        <a data-page="07" href="state-tasks.html">狀態與任務</a>
+        <a data-page="08" href="permissions-modes.html">模式與權限</a>
+        <a data-page="09" href="memory-system.html">記憶系統</a>
+        <a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+        <a data-page="11" href="prompt-system.html">提示系統</a>
+        <a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+        <a data-page="13" href="terminal-ui.html">終端 UI</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <p>工具系統的核心概念是「工具契約」與「工具清單」分離。每個工具透過 Tool 介面宣告名稱、描述、參數 schema 與執行邏輯（這是契約）。但工具是否在當前回合可用，取決於 feature flag、環境條件與使用者模式等動態篩選（這是清單組裝）。最終可見的工具集會傳給模型，模型才能決定要呼叫哪些工具。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <pre class="snippet"><code class="language-ts">export function getAllBaseTools(): Tools {
+  return [
+    AgentTool,
+    BashTool,
+    FileReadTool,
+    ...(isToolSearchEnabledOptimistic() ? [ToolSearchTool] : []),
+  ]
+}</code></pre>
+        <p class="explain-note">基礎工具清單在此組裝，部分工具依 feature flag 條件決定是否納入。</p>
+        <pre class="pseudo"><code class="language-text">宣告基礎工具清單（每個工具自帶契約）
+逐一檢查 feature flag 與環境條件
+篩選出本回合可見工具
+將可見工具集交給模型
+模型決定呼叫哪個工具
+該工具進入權限管線檢查
+通過後執行工具邏輯</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[工具定義 Tool.ts] --> B[getAllBaseTools]
+  B --> C{feature flag 檢查}
+  C --> D{環境條件篩選}
+  D --> E[本回合可見工具]
+  E --> F[模型選擇工具]
+  F --> G{權限檢查}
+  G -->|通過| H[執行工具邏輯]
+  G -->|拒絕| I[回報權限不足]</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>工具定義（契約）與工具可見性（清單）是兩個獨立階段。</li>
+            <li>feature flag 與環境條件在每回合重新評估，工具可見性是動態的。</li>
+            <li>所有工具呼叫都必須通過權限管線，沒有例外。</li>
+            <li>模型只能看到篩選後的工具集，無法呼叫不可見的工具。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="decision-card">
+          <h3>決策 1：工具定義與可見性分離</h3>
+          <p><strong>原因：</strong>同一個工具可以依據場景動態開關。例如在受限模式下隱藏危險工具，在完整模式下全部可用，無需維護多份工具定義。</p>
+          <p><strong>代價：</strong>開發者需理解「定義了不代表可用」的間接性，初次接觸時認知負擔較高。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：使用 feature flag 而非條件編譯</h3>
+          <p><strong>原因：</strong>支援動態切換與 A/B 測試。feature flag 可在執行期即時改變工具可見性，不需重新部署或重新編譯。</p>
+          <p><strong>代價：</strong>flag 數量增長後管理複雜度上升，需要清理機制避免殘留的無效 flag。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：工具必經權限管線</h3>
+          <p><strong>原因：</strong>防止未授權操作。即使模型選擇了某個工具，仍需通過權限檢查才能執行，確保安全邊界不被繞過。</p>
+          <p><strong>代價：</strong>每次工具呼叫都有權限檢查開銷，且權限規則設定錯誤會阻擋合法操作。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何未採用/何時可採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>靜態工具清單（啟動時固定，回合中不變）</td>
+              <td>邏輯單純，容易推理與除錯</td>
+              <td>無法依場景動態調整，缺乏彈性</td>
+              <td>工具數量少且無模式切換需求時可行，目前場景需要動態組裝</td>
+            </tr>
+            <tr>
+              <td>工具自行檢查權限（無統一管線）</td>
+              <td>每個工具可自訂權限邏輯，彈性最高</td>
+              <td>權限邏輯分散，容易遺漏或不一致，安全風險高</td>
+              <td>工具數量極少時可行，規模化後統一管線更可靠</td>
+            </tr>
+            <tr>
+              <td>全量工具註冊（所有工具一律註冊，用時才篩選）</td>
+              <td>註冊邏輯簡單，不需管理 flag</td>
+              <td>模型看到過多工具會降低選擇品質，token 浪費</td>
+              <td>工具集小時可行，工具數量多時需提前篩選以控制模型輸入</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 1：feature flag 設定錯誤導致工具消失</h3>
+          <p><strong>症狀：</strong>使用者預期可用的工具在回合中找不到，模型無法呼叫該工具。</p>
+          <p><strong>防護：</strong>加入 flag 狀態日誌，當工具因 flag 被排除時記錄原因；提供診斷指令讓使用者檢視當前可見工具清單。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：工具 schema 不符導致模型呼叫失敗</h3>
+          <p><strong>症狀：</strong>模型嘗試呼叫工具但參數格式錯誤，工具拋出驗證錯誤或產生非預期結果。</p>
+          <p><strong>防護：</strong>工具註冊時驗證 schema 完整性；執行前對模型傳入的參數做 schema 校驗，並回傳可讀的錯誤訊息。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：權限管線阻擋合法工具呼叫</h3>
+          <p><strong>症狀：</strong>使用者在正確模式下呼叫工具卻被拒絕，操作中斷且無明確原因。</p>
+          <p><strong>防護：</strong>權限拒絕時回傳具體原因（缺少哪個權限、需要哪個模式）；定期審查權限規則避免過度收緊。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <ul>
+          <li>確認基礎工具清單完整：呼叫 <code>getAllBaseTools()</code> 並檢查回傳的工具數量與預期一致。</li>
+          <li>確認 feature flag 切換後工具可見性改變：開啟／關閉特定 flag，驗證對應工具出現或消失。</li>
+          <li>確認未授權工具被正確攔截：在受限模式下嘗試呼叫需要權限的工具，驗證回傳權限不足錯誤。</li>
+          <li>確認工具 schema 驗證生效：傳入不符 schema 的參數，驗證工具回傳明確的驗證錯誤。</li>
+        </ul>
+        <p class="explain-note">這四步覆蓋「清單完整性、動態可見性、權限攔截、schema 驗證」，是最低可接受驗證集。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="command-system.html">← 上一頁</a>
+      <a href="query-engine.html">下一頁：回合引擎 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

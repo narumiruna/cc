@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>模式與權限 | Claude Code 初學者教學</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="08">
+<div class="shell">
+<header class="header">
+<div class="header-title-row">
+<h1>模式與權限：工具執行前的安全決策</h1>
+<button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+</div>
+<p>先判斷模式，再套規則，再到工具檢查，最後才執行。</p>
+<nav class="top-nav" aria-label="主要導覽">
+<a data-page="home" href="../index.html">首頁</a>
+<a data-page="01" href="quickstart.html">快速起步</a>
+<a data-page="02" href="runtime-entry.html">啟動流程</a>
+<a data-page="03" href="command-system.html">指令系統</a>
+<a data-page="04" href="tool-system.html">工具系統</a>
+<a data-page="05" href="query-engine.html">回合引擎</a>
+<a data-page="06" href="services-mcp.html">服務與 MCP</a>
+<a data-page="07" href="state-tasks.html">狀態與任務</a>
+<a data-page="08" href="permissions-modes.html">模式與權限</a>
+<a data-page="09" href="memory-system.html">記憶系統</a>
+<a data-page="10" href="agent-and-extension.html">代理與擴充</a>
+<a data-page="11" href="prompt-system.html">提示系統</a>
+<a data-page="12" href="hooks-automation.html">Hooks 與自動化</a>
+<a data-page="13" href="terminal-ui.html">終端 UI</a>
+</nav>
+<nav class="toc-local" aria-label="章內導覽">
+<a href="#tldr">90 秒總覽</a>
+<a href="#runtime-path">執行路徑</a>
+<a href="#decisions">關鍵決策</a>
+<a href="#tradeoffs">替代方案與取捨</a>
+<a href="#failure-modes">失敗路徑</a>
+<a href="#implementation">實作驗證</a>
+</nav>
+</header>
+<main>
+<section class="block" id="tldr">
+<h2>90 秒總覽</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l1">L1 入門</span>
+<span class="depth-tag depth-l2">L2 進階</span>
+</div>
+<p>權限系統是 Claude Code 執行工具前的安全閘門。每當模型要呼叫一個工具，系統會依序檢查：① 當前模式（Plan / Auto Accept / Default）是否允許、② 使用者設定的 allow/deny 規則是否匹配、③ 工具本身的安全檢查是否通過。如果以上都通過，工具才能執行；否則系統會拒絕或詢問使用者確認。這個三層防護確保使用者始終掌握控制權。</p>
+</section>
+<section class="block" id="runtime-path">
+<h2>執行路徑（主骨架）</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l1">L1 入門</span>
+<span class="depth-tag depth-l2">L2 進階</span>
+<span class="depth-tag depth-l3">L3 架構</span>
+</div>
+<pre class="snippet"><code class="language-ts">const result = await canUseTool(tool, input, ctx)
+if (result.behavior === 'deny') {
+  return { ok: false }
+}
+return tool.run(input, ctx)</code></pre>
+<pre class="pseudo"><code class="language-text">讀取當前 permission mode
+套用 allow/deny 規則
+執行工具特定檢查
+必要時詢問使用者
+決定執行或拒絕</code></pre>
+<pre class="mermaid">flowchart TD
+  A[工具呼叫請求] --> B[讀取當前模式]
+  B --> C[模式規則檢查]
+  C --> D[allow/deny 規則比對]
+  D --> E[工具特定檢查]
+  E --> F{需要使用者確認?}
+  F -->|是| G[顯示 prompt]
+  G --> H[使用者回覆]
+  H --> I[執行或拒絕]
+  F -->|否| J[直接執行]
+  J --> I</pre>
+<div class="impl-checklist">
+<h3>路徑判讀重點</h3>
+<ul>
+<li>三層檢查依序執行：模式 → 規則 → 工具，任一層拒絕即短路中止。</li>
+<li>使用者確認是阻塞式操作，在回覆前工具不會被執行。</li>
+<li>Auto Accept 模式跳過使用者確認，但仍經過規則與工具檢查。</li>
+</ul>
+</div>
+</section>
+<section class="block" id="decisions">
+<h2>關鍵決策（為什麼這樣設計）</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l2">L2 進階</span>
+<span class="depth-tag depth-l3">L3 架構</span>
+</div>
+<div class="decision-card">
+<h3>決策 1：三層檢查順序固定（模式→規則→工具）</h3>
+<p><strong>原因：</strong>確保最廣泛的限制先生效。模式是全域控制，規則是使用者自訂偏好，工具檢查是最細粒度的安全確認。</p>
+<p><strong>代價：</strong>順序固定意味著無法讓工具層覆寫模式層的決定，靈活性較低。</p>
+</div>
+<div class="decision-card">
+<h3>決策 2：Plan mode 下禁止所有寫入操作</h3>
+<p><strong>原因：</strong>保護使用者免於非預期變更。Plan mode 的設計目的是「只看不動」，任何寫入都違反此保證。</p>
+<p><strong>代價：</strong>使用者在 Plan mode 下無法做小幅修正，必須切換模式才能操作。</p>
+</div>
+<div class="decision-card">
+<h3>決策 3：使用者確認是阻塞式而非建議式</h3>
+<p><strong>原因：</strong>安全決策不能被忽略。如果確認只是通知，模型可能在使用者未注意時執行危險操作。</p>
+<p><strong>代價：</strong>互動流暢度降低，頻繁確認可能造成使用者疲勞。</p>
+</div>
+</section>
+<section class="block" id="tradeoffs">
+<h2>替代方案與取捨</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l2">L2 進階</span>
+<span class="depth-tag depth-l3">L3 架構</span>
+</div>
+<table class="tradeoff-table">
+<thead>
+<tr>
+<th>方案</th>
+<th>優點</th>
+<th>缺點</th>
+<th>為何未採用/何時可採用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>單層權限（僅模式判斷）</td>
+<td>實作簡單，判斷路徑短</td>
+<td>缺乏細粒度控制，無法針對特定工具設定例外</td>
+<td>安全需求要求多層防護，單層無法滿足</td>
+</tr>
+<tr>
+<td>三層權限（模式＋規則＋工具）</td>
+<td>分層明確，各層職責清楚</td>
+<td>判斷邏輯較複雜，除錯時需逐層排查</td>
+<td>目前採用；在安全與靈活度之間取得平衡</td>
+</tr>
+<tr>
+<td>白名單模式（預設拒絕，逐一開放）</td>
+<td>最嚴格，安全性最高</td>
+<td>初始設定成本高，使用者體驗差</td>
+<td>適合高安全場景，但對初學者不友善</td>
+</tr>
+<tr>
+<td>黑名單模式（預設允許，逐一封鎖）</td>
+<td>上手容易，開箱即用</td>
+<td>可能遺漏危險操作，安全性較低</td>
+<td>不適合安全敏感場景</td>
+</tr>
+<tr>
+<td>阻塞確認（等待使用者回覆才執行）</td>
+<td>使用者完全掌控，不會漏看</td>
+<td>中斷工作流，頻繁確認造成疲勞</td>
+<td>目前採用；安全優先於流暢度</td>
+</tr>
+<tr>
+<td>非阻塞通知（執行後通知使用者）</td>
+<td>流暢度高，不中斷操作</td>
+<td>使用者可能錯過危險操作通知</td>
+<td>安全決策不適合事後通知</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section class="block" id="failure-modes">
+<h2>失敗路徑與防護</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l2">L2 進階</span>
+<span class="depth-tag depth-l3">L3 架構</span>
+</div>
+<div class="failure-case">
+<h3>Failure 1：模式切換後規則快取未更新</h3>
+<p><strong>症狀：</strong>切換到 Plan mode 後，寫入工具仍能執行，因為舊模式的快取規則還在生效。</p>
+<p><strong>防護：</strong>模式切換時強制清除並重建規則快取，確保新模式立即生效。</p>
+</div>
+<div class="failure-case">
+<h3>Failure 2：使用者確認對話超時</h3>
+<p><strong>症狀：</strong>等待確認的 prompt 長時間無回應，工具呼叫卡在佇列中，後續操作全部阻塞。</p>
+<p><strong>防護：</strong>設定合理的超時機制，超時後自動拒絕並通知使用者，避免無限等待。</p>
+</div>
+<div class="failure-case">
+<h3>Failure 3：工具繞過權限檢查</h3>
+<p><strong>症狀：</strong>某些工具直接執行而未經過 canUseTool 檢查，導致未授權操作被執行。</p>
+<p><strong>防護：</strong>在工具執行入口處統一攔截，確保所有工具呼叫都必經權限檢查管線。</p>
+</div>
+</section>
+<section class="block" id="implementation">
+<h2>實作驗證（你改完要怎麼確認）</h2>
+<div class="depth-row">
+<span class="depth-tag depth-l1">L1 入門</span>
+<span class="depth-tag depth-l2">L2 進階</span>
+</div>
+<ul>
+<li>確認 Plan mode 下寫入工具被拒絕：切換到 Plan mode，嘗試執行寫入操作，應收到拒絕回應。</li>
+<li>確認 deny 規則正確攔截：新增一條 deny 規則後，對應工具呼叫應被阻擋。</li>
+<li>確認使用者確認後才執行：在需要確認的情境下，觀察工具是否在回覆前保持等待。</li>
+<li>確認模式切換即時生效：切換模式後立刻測試對應權限，不應沿用舊模式行為。</li>
+</ul>
+<p class="explain-note">這四步對應「模式層、規則層、確認流程、即時性」，是最低可接受驗證集。</p>
+</section>
+</main>
+<div class="pager">
+<a href="state-tasks.html">← 上一頁</a>
+<a href="memory-system.html">下一頁：記憶系統 →</a>
+</div>
+</div>
+<script src="../assets/site.js"></script>
+</body>
+</html>
