@@ -29,6 +29,13 @@ Write all documentation in clear, standard English with concise, enforceable wor
 - Keep boundaries explicit: one file, one primary purpose.
 - Avoid duplicating foundational rules across multiple documents.
 
+## Source-of-Truth Requirement for Website Content
+
+- Web pages and long-form articles in this repository MUST be written from direct evidence in `src/`.
+- Before drafting or revising website/tutorial/article content, the agent MUST read relevant `src/` files and derive claims from code behavior, flags, and execution paths.
+- The agent MUST NOT rely on external summaries, guesses, or marketing claims as primary evidence when `src/` provides the authoritative implementation details.
+- When discussing features, the agent SHOULD include traceable code references (file paths and relevant sections) in working notes or supporting documentation.
+
 ## Testing & Validation Guidelines
 For documentation-focused changes, validation is consistency-first:
 

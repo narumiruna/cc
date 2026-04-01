@@ -107,6 +107,57 @@ graph LR
         </pre>
       </section>
 
+      <section class="block">
+        <h2>依角色推薦閱讀路線</h2>
+        <p>若你時間有限，可先依角色挑選章節，再回頭補完整路線。</p>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>角色</th>
+              <th>建議先讀</th>
+              <th>接著補讀</th>
+              <th>目標成果</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>第一次接觸 Claude Code</td>
+              <td>快速起步 → 啟動流程</td>
+              <td>指令系統 → 工具系統</td>
+              <td>能說清楚系統從輸入到回應的主流程</td>
+            </tr>
+            <tr>
+              <td>日常使用者（想提升效率）</td>
+              <td>指令系統 → 回合引擎 → 模式與權限</td>
+              <td>Hooks 與自動化 → 提示系統</td>
+              <td>能設計穩定的工作流並避免常見誤用</td>
+            </tr>
+            <tr>
+              <td>維護者／架構導向讀者</td>
+              <td>工具系統 → 狀態與任務 → 記憶系統</td>
+              <td>代理與擴充 → 服務與 MCP → 終端 UI</td>
+              <td>能評估設計取捨與擴充邊界</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block">
+        <h2>常見閱讀問題</h2>
+        <div class="decision-card">
+          <h3>我一定要照順序讀完 13 章嗎？</h3>
+          <p>不用。先看首頁的角色路線快速上手，再補四階段路線，效率最高。</p>
+        </div>
+        <div class="decision-card">
+          <h3>每章都要看 L1、L2、L3 嗎？</h3>
+          <p>不必。建議先讀 L1 建立地圖，遇到工作需求時再下鑽 L2/L3。</p>
+        </div>
+        <div class="decision-card">
+          <h3>我想直接改程式，先看哪裡？</h3>
+          <p>先看「啟動流程、回合引擎、模式與權限」，這三章最能降低改動風險。</p>
+        </div>
+      </section>
+
       <section class="grid" aria-label="章節索引">
       <article class="card">
         <div class="card-header"><span class="card-num">1</span><h2>快速起步</h2></div>
@@ -173,6 +224,69 @@ graph LR
         <p>用 React 渲染終端機介面的完整框架。本章拆解自建 React 調和器、Yoga Flexbox 排版引擎、雙緩衝與 Blit 優化、2D Cell 螢幕模型等核心技術，理解 CLI 如何實現瀏覽器等級的渲染能力。</p>
         <a class="card-link" href="pages/terminal-ui.html">前往</a>
       </article>
+      <article class="card">
+        <div class="card-header"><span class="card-num">14</span><h2>未開放功能雷達</h2></div>
+        <p>透過閱讀 src/ 原始碼中的 feature gate、條件載入與隱藏入口，整理目前疑似尚未全面開放的功能方向，附上可追溯的檔案證據與判讀方法。</p>
+        <a class="card-link" href="pages/unreleased-features.html">前往</a>
+      </article>
+      </section>
+
+      <section class="block">
+        <h2>章節速查對照</h2>
+        <p>如果你已經知道自己遇到的問題類型，可以直接用這張表定位應該先讀哪一章。</p>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>你現在卡住的問題</th>
+              <th>先讀章節</th>
+              <th>再讀章節</th>
+              <th>典型收穫</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>CLI 參數進來後不知道去哪裡</td>
+              <td>啟動流程</td>
+              <td>回合引擎</td>
+              <td>看懂輸入如何進入完整生命週期</td>
+            </tr>
+            <tr>
+              <td>不知道 command 為什麼會觸發某個 tool</td>
+              <td>指令系統</td>
+              <td>工具系統</td>
+              <td>掌握解析、分派與工具契約邊界</td>
+            </tr>
+            <tr>
+              <td>工具執行常被權限模式擋下</td>
+              <td>模式與權限</td>
+              <td>狀態與任務</td>
+              <td>釐清允許條件與狀態切換時機</td>
+            </tr>
+            <tr>
+              <td>對話品質不穩定，提示行為飄移</td>
+              <td>提示系統</td>
+              <td>記憶系統</td>
+              <td>理解提示組裝與記憶載入交互影響</td>
+            </tr>
+            <tr>
+              <td>想把流程自動化，但怕破壞安全邊界</td>
+              <td>Hooks 與自動化</td>
+              <td>代理與擴充</td>
+              <td>建立可控的擴充策略與防護點</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block">
+        <h2>建議學習節奏（7 天）</h2>
+        <p>這是一個可直接執行的最小學習計畫，適合想在一週內建立穩定心智模型的讀者。</p>
+        <div class="phase-grid">
+          <div class="phase-item"><strong>Day 1-2</strong><span>快速起步、啟動流程、指令系統（只看 L1/L2）</span></div>
+          <div class="phase-item"><strong>Day 3-4</strong><span>工具系統、回合引擎、模式與權限（補齊失敗路徑）</span></div>
+          <div class="phase-item"><strong>Day 5</strong><span>記憶系統、提示系統（聚焦穩定性與一致性）</span></div>
+          <div class="phase-item"><strong>Day 6-7</strong><span>Hooks 與自動化、代理與擴充、終端 UI（看擴充邊界）</span></div>
+        </div>
       </section>
     </main>
 

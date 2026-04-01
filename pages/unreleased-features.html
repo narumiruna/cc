@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>未開放功能雷達 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="14">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>未開放功能雷達：從 src/ 原始碼找線索</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>這頁只用程式碼證據整理「可能尚未全面開放」的功能方向，不依賴外部傳聞。</p>
+      <nav class="top-nav" aria-label="主要導覽">
+        <a data-page="home" href="../index.html">首頁</a>
+      </nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#method">判讀方法</a>
+        <a href="#signals">功能訊號清單</a>
+        <a href="#confidence">信心分級</a>
+        <a href="#implementation">如何自行驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+          <span class="depth-tag depth-l3">L3 架構</span>
+        </div>
+        <p>從 <code>src/</code> 來看，Claude Code 內部存在大量以 <code>feature('...')</code> 控制的功能閘門。這些功能不一定是「永遠未開放」，但至少代表它們會依 build、環境、帳號或策略條件分批啟用。最明顯的訊號包括：assistant/kairos 系列、direct connect、ssh remote、bridge remote control、workflow scripts、team memory、buddy、voice mode、背景 session 與 runner 類入口。</p>
+      </section>
+
+      <section class="block" id="method">
+        <h2>判讀方法（只看原始碼）</h2>
+        <div class="decision-card">
+          <h3>訊號 1：feature gate</h3>
+          <p>只要功能透過 <code>feature('FLAG')</code> 包起來，就代表不是所有環境都會啟用。典型位置：<code>src/main.tsx</code>、<code>src/commands.ts</code>、<code>src/entrypoints/cli.tsx</code>。</p>
+        </div>
+        <div class="decision-card">
+          <h3>訊號 2：條件載入（dead code elimination 註解）</h3>
+          <p>程式明確寫「給 build-time dead code elimination」時，通常表示外部版會被裁掉部分能力。</p>
+        </div>
+        <div class="decision-card">
+          <h3>訊號 3：內部限定註記</h3>
+          <p>像 <code>Ant-only</code>、<code>internal</code>、<code>supervisor spawns this</code> 這類註解，通常代表功能尚未面向一般使用者。</p>
+        </div>
+      </section>
+
+      <section class="block" id="signals">
+        <h2>疑似未全面開放功能（含證據）</h2>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>功能方向</th>
+              <th>原始碼證據</th>
+              <th>觀察到的能力</th>
+              <th>判讀</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Assistant / Kairos 系列</td>
+              <td><code>src/main.tsx:80</code>、<code>src/main.tsx:559</code>、<code>src/commands.ts:70</code></td>
+              <td>有 <code>assistant</code> 入口、brief 指令與相關 gate。</td>
+              <td>高機率分批開放，不是所有 build 都可用。</td>
+            </tr>
+            <tr>
+              <td>Direct Connect（cc://）</td>
+              <td><code>src/main.tsx:548</code>、<code>src/main.tsx:612</code></td>
+              <td>可解析 <code>cc://</code> / <code>cc+unix://</code> 並改寫啟動路徑。</td>
+              <td>已具體實作，但受 feature gate 控制。</td>
+            </tr>
+            <tr>
+              <td>SSH Remote Session</td>
+              <td><code>src/main.tsx:577</code>、<code>src/main.tsx:702</code></td>
+              <td><code>claude ssh &lt;host&gt;</code> 早期解析、遠端 session 參數轉發。</td>
+              <td>能力完整度高，可能仍在灰度或特定環境。</td>
+            </tr>
+            <tr>
+              <td>Remote Control / Bridge</td>
+              <td><code>src/entrypoints/cli.tsx:112</code>、<code>src/entrypoints/cli.tsx:157</code></td>
+              <td><code>remote-control</code> / <code>rc</code> 入口，且受政策限制。</td>
+              <td>明顯受組織策略與 gate 雙重控制。</td>
+            </tr>
+            <tr>
+              <td>Workflow Scripts 任務</td>
+              <td><code>src/tasks.ts:9</code>、<code>src/commands.ts:86</code></td>
+              <td>可動態注入 <code>LocalWorkflowTask</code> 與 workflows 指令。</td>
+              <td>偏實驗或企業場景，尚非預設能力。</td>
+            </tr>
+            <tr>
+              <td>Team Memory</td>
+              <td><code>src/memdir/memdir.ts:7</code>、<code>src/memdir/memdir.ts:106</code></td>
+              <td>team memory 路徑與 prompt 組裝模組有條件載入。</td>
+              <td>顯示多人協作記憶能力存在但非全量啟用。</td>
+            </tr>
+            <tr>
+              <td>Buddy 互動夥伴</td>
+              <td><code>src/commands.ts:118</code>、<code>src/buddy/useBuddyNotification.tsx:53</code></td>
+              <td><code>/buddy</code> 觸發與啟動提示，且有 teaser 時窗邏輯。</td>
+              <td>屬於明確 feature rollout 設計。</td>
+            </tr>
+            <tr>
+              <td>Voice Mode</td>
+              <td><code>src/commands.ts:80</code></td>
+              <td>voice 指令透過 <code>VOICE_MODE</code> gate 條件載入。</td>
+              <td>可能僅在特定版本或平台曝光。</td>
+            </tr>
+            <tr>
+              <td>背景 Session 管理</td>
+              <td><code>src/entrypoints/cli.tsx:185</code></td>
+              <td><code>ps/logs/attach/kill</code> 與 <code>--bg</code> 路徑。</td>
+              <td>可用性可能依 gate 或發佈節奏而異。</td>
+            </tr>
+            <tr>
+              <td>Runner 類能力（BYOC / self-hosted）</td>
+              <td><code>src/entrypoints/cli.tsx:226</code>、<code>src/entrypoints/cli.tsx:238</code></td>
+              <td><code>environment-runner</code>、<code>self-hosted-runner</code> 專用入口。</td>
+              <td>偏平台整合能力，通常先內部/企業驗證。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="confidence">
+        <h2>信心分級與風險提醒</h2>
+        <div class="failure-case">
+          <h3>高信心：有完整流程且多檔案交叉引用</h3>
+          <p>例如 assistant、ssh remote、bridge、direct connect。這類通常不是概念草稿，而是已實作但控管開放範圍。</p>
+        </div>
+        <div class="failure-case">
+          <h3>中信心：有 command/task 入口但曝光條件不明</h3>
+          <p>例如 workflows、voice、buddy、team memory。可能由環境、帳號、政策或 build 變體決定是否可見。</p>
+        </div>
+        <div class="failure-case">
+          <h3>低信心：僅單點 flag 或註解</h3>
+          <p>單一旗標不等於即將發布。它也可能是 A/B 實驗、內部工具、已廢棄分支或特定客戶方案。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>如何自行驗證（可重現）</h2>
+        <div class="depth-row">
+          <span class="depth-tag depth-l1">L1 入門</span>
+          <span class="depth-tag depth-l2">L2 進階</span>
+        </div>
+        <pre class="snippet"><code class="language-bash"># 1) 列出 src 內所有 feature gate
+rg "feature\('[A-Z0-9_]+'\)" src
+
+# 2) 看指令層哪些能力是條件載入
+rg "const .* = feature\(" src/commands.ts
+
+# 3) 看啟動入口有哪些 fast-path 是 gate 控制
+rg "if \(feature\(" src/entrypoints/cli.tsx
+
+# 4) 追某個旗標的完整路徑（以 KAIROS 為例）
+rg "KAIROS" src</code></pre>
+        <p class="explain-note">建議每次更新版本後重跑一次，對照差異才能看出哪些功能正在從「實驗」走向「預設」。</p>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="terminal-ui.html">← 上一頁：終端 UI</a>
+      <a href="../index.html">回首頁 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

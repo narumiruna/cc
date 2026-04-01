@@ -13,7 +13,8 @@
     { page: '10', label: '代理與擴充', href: 'pages/agent-and-extension.html' },
     { page: '11', label: '提示系統', href: 'pages/prompt-system.html' },
     { page: '12', label: 'Hooks 與自動化', href: 'pages/hooks-automation.html' },
-    { page: '13', label: '終端 UI', href: 'pages/terminal-ui.html' }
+    { page: '13', label: '終端 UI', href: 'pages/terminal-ui.html' },
+    { page: '14', label: '未開放功能', href: 'pages/unreleased-features.html' }
   ];
 
   function renderTopNav() {
