@@ -16,7 +16,7 @@
         <h1>內建 Tools：完整清單與分層介紹</h1>
         <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
       </div>
-      <p>本頁依 <code>src/tools.ts</code> 的 <code>getAllBaseTools()</code> 與 gate 條件彙整。</p>
+      <p>本頁依 <code>src/tools.ts</code> 的組裝路徑整理，特別標示「條件式可用」與模式/權限影響。</p>
       <nav class="top-nav" aria-label="主要導覽"></nav>
       <nav class="toc-local" aria-label="章內導覽">
         <a href="#tldr">90 秒總覽</a>
@@ -46,18 +46,22 @@ export const getTools = (permissionContext) => {
 }
 
 export function assembleToolPool(permissionContext, mcpTools) {
-  return uniqBy([...builtInTools, ...allowedMcpTools], 'name')
+  return uniqBy(
+    [...builtInTools].sort(byName).concat(allowedMcpTools.sort(byName)),
+    'name',
+  )
 }</code></pre>
+        <p class="explain-note">重點：工具池會先排序再合併，目的是讓 prompt cache 更穩定；同名工具以 built-in 優先。</p>
       </section>
 
       <section class="block" id="core">
-        <h2>核心常駐工具（主要內建）</h2>
-        <p>以下是平常最核心、最常見的內建工具（名稱依工具常數與 prompt 名稱整理）：</p>
+        <h2>核心常見工具（非保證常駐）</h2>
+        <p>以下是最常見的內建工具集合；是否可見仍受 mode / feature / env / provider / permission 共同影響。</p>
         <pre class="flow"><code>Agent, TaskOutput, Bash, Read, Edit, Write, NotebookEdit,
 WebFetch, WebSearch, Grep, Glob, TodoWrite, TaskStop,
 AskUserQuestion, Skill, EnterPlanMode, ExitPlanMode,
-ListMcpResourcesTool, ReadMcpResourceTool</code></pre>
-        <p class="explain-note">其中 Grep/Glob 在 embedded search 存在時可能被替換路徑；實際可見性仍以執行時過濾為準。</p>
+SendUserMessage(Brief)</code></pre>
+        <p class="explain-note">註：<code>ListMcpResourcesTool</code>/<code>ReadMcpResourceTool</code> 只會在連線到具 resources capability 的 MCP server 時動態加入。</p>
       </section>
 
       <section class="block" id="optional">
@@ -71,10 +75,10 @@ ListMcpResourcesTool, ReadMcpResourceTool</code></pre>
             </tr>
           </thead>
           <tbody>
-            <tr><td>PowerShell</td><td><code>isPowerShellToolEnabled()</code></td><td>Windows 指令執行</td></tr>
-            <tr><td>REPL</td><td><code>USER_TYPE === 'ant'</code></td><td>沙箱式互動執行</td></tr>
+            <tr><td>PowerShell</td><td>Windows + <code>isPowerShellToolEnabled()</code>（含 user type/env）</td><td>Windows 指令執行</td></tr>
+            <tr><td>REPL</td><td>ant + entrypoint 條件（CLI / SDK 路徑不同）</td><td>沙箱式互動執行</td></tr>
             <tr><td>ToolSearch</td><td><code>isToolSearchEnabledOptimistic()</code></td><td>工具搜尋索引</td></tr>
-            <tr><td>TaskCreate / TaskGet / TaskUpdate / TaskList</td><td><code>isTodoV2Enabled()</code></td><td>任務系統 v2</td></tr>
+            <tr><td>TaskCreate / TaskGet / TaskUpdate / TaskList</td><td><code>isTodoV2Enabled()</code>（與 TodoWrite 互斥）</td><td>任務系統 v2</td></tr>
             <tr><td>EnterWorktree / ExitWorktree</td><td><code>isWorktreeModeEnabled()</code></td><td>工作樹模式切換</td></tr>
             <tr><td>Sleep</td><td><code>feature('PROACTIVE'|'KAIROS')</code></td><td>等待與排程節點</td></tr>
             <tr><td>CronCreate / CronDelete / CronList</td><td><code>feature('AGENT_TRIGGERS')</code></td><td>Cron 觸發管理</td></tr>
@@ -93,7 +97,7 @@ ListMcpResourcesTool, ReadMcpResourceTool</code></pre>
         <h2>模式影響：為什麼你看到的工具會不同</h2>
         <div class="decision-card">
           <h3>Simple mode（<code>--bare</code>）</h3>
-          <p>預設只留 <code>Bash</code>、<code>Read</code>、<code>Edit</code>，大幅縮小工具面。</p>
+          <p>常見分支是 <code>Bash/Read/Edit</code>；若啟用 REPL 或 coordinator mode，會切到對應的精簡工具集（例如 REPL 或 Agent/TaskStop/SendMessage）。</p>
         </div>
         <div class="decision-card">
           <h3>REPL mode</h3>
@@ -101,7 +105,7 @@ ListMcpResourcesTool, ReadMcpResourceTool</code></pre>
         </div>
         <div class="decision-card">
           <h3>Permission deny rules</h3>
-          <p>即使工具存在於 built-in 清單，也可能在 <code>filterToolsByDenyRules</code> 被提前剔除。</p>
+          <p>即使工具存在於 built-in 清單，也可能在 <code>filterToolsByDenyRules</code> 被提前剔除；此處主要處理 blanket deny 與 MCP server-prefix deny。</p>
         </div>
       </section>
     </main>

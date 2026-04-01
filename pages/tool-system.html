@@ -46,7 +46,7 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <p>工具系統的核心概念是「工具契約」與「工具清單」分離。每個工具透過 Tool 介面宣告名稱、描述、參數 schema 與執行邏輯（這是契約）。但工具是否在當前回合可用，取決於 feature flag、環境條件與使用者模式等動態篩選（這是清單組裝）。最終可見的工具集會傳給模型，模型才能決定要呼叫哪些工具。</p>
+        <p>工具系統的核心概念是「工具契約」與「工具清單」分離。每個工具透過 Tool 介面宣告名稱、描述、參數 schema 與執行邏輯（契約）；可見性則由組裝層與回合層共同決定。要注意：不是所有 gate 都是每回合即時切換，部分條件在載入/打包時就已固定。</p>
       </section>
 
       <section class="block" id="runtime-path">
@@ -59,9 +59,10 @@
     ...(isToolSearchEnabledOptimistic() ? [ToolSearchTool] : []),
   ]
 }</code></pre>
-        <p class="explain-note">基礎工具清單在此組裝，部分工具依 feature flag 條件決定是否納入。</p>
+        <p class="explain-note">基礎清單先決定候選工具；回合時還會再套用 deny rules、mode 與 <code>isEnabled()</code> 過濾。</p>
         <pre class="pseudo"><code class="language-text">宣告基礎工具清單（每個工具自帶契約）
-逐一檢查 feature flag 與環境條件
+逐一檢查 feature/env 條件（部分在載入期即決定）
+回合階段再套用 deny rules + mode + isEnabled
 篩選出本回合可見工具
 將可見工具集交給模型
 模型決定呼叫哪個工具
@@ -80,7 +81,7 @@
           <h3>路徑判讀重點</h3>
           <ul>
             <li>工具定義（契約）與工具可見性（清單）是兩個獨立階段。</li>
-            <li>feature flag 與環境條件在每回合重新評估，工具可見性是動態的。</li>
+            <li>條件分兩類：載入期 gate（例如部分 feature import）與回合期 gate（deny rules、mode、isEnabled）。</li>
             <li>所有工具呼叫都必須通過權限管線，沒有例外。</li>
             <li>模型只能看到篩選後的工具集，無法呼叫不可見的工具。</li>
           </ul>
@@ -95,9 +96,9 @@
           <p><strong>代價：</strong>開發者需理解「定義了不代表可用」的間接性，初次接觸時認知負擔較高。</p>
         </div>
         <div class="decision-card">
-          <h3>決策 2：使用 feature flag 而非條件編譯</h3>
-          <p><strong>原因：</strong>支援動態切換與 A/B 測試。feature flag 可在執行期即時改變工具可見性，不需重新部署或重新編譯。</p>
-          <p><strong>代價：</strong>flag 數量增長後管理複雜度上升，需要清理機制避免殘留的無效 flag。</p>
+          <h3>決策 2：混合式 gate（條件載入 + 執行期過濾）</h3>
+          <p><strong>原因：</strong>工具系統同時使用 dead-code-elimination 路徑與執行期過濾，兼顧建置體積、效能與可控性。</p>
+          <p><strong>代價：</strong>維運時要分清楚 gate 發生階段，避免把所有可見性都誤判成「每回合即時」。</p>
         </div>
         <div class="decision-card">
           <h3>決策 3：工具必經權限管線</h3>

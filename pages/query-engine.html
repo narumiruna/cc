@@ -46,32 +46,38 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <p>回合引擎（QueryEngine）負責把「使用者訊息」變成「可控的執行回合」。它不只送 API，還要協調工具權限、訊息累積、usage 計算、錯誤恢復與持久化。你可以把它視為單回合的交通總站。</p>
+        <p>回合引擎（QueryEngine）負責把「使用者訊息」變成「可控的執行回合」。它不只送 API，還會組裝 system prompt（含條件式 memory prompt）、處理使用者輸入、記錄 permission denials、累積 usage 與持久化 transcript。你可以把它視為單回合的交通總站。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
         <pre class="pseudo"><code class="language-text">使用者提交 prompt
-建立本回合 context（工具、權限、快取參數）
-進入 query loop
-模型輸出可能觸發 tool_use
-工具結果回寫 messages 並進入下一輪 loop
-達到完成邊界後統一收尾（usage / transcript / hooks）</code></pre>
+建立回合 context（模型、工具、權限、system prompt parts）
+執行 processUserInput（可能直接結束，不進 query loop）
+先寫入使用者 transcript（確保可 resume）
+若 shouldQuery=true 才進入 query loop
+模型輸出可能觸發 tool_use，回寫 messages 後再迭代
+達到完成邊界後輸出 result（usage / permission_denials / transcript）</code></pre>
         <pre class="mermaid">flowchart TD
   A[使用者輸入] --> B[submitMessage]
   B --> C[建立回合 context]
-  C --> D[query loop]
-  D --> E{是否呼叫工具}
-  E -->|是| F[tool run + result]
-  F --> D
-  E -->|否| G[完成訊息]
-  G --> H[usage/持久化/stop hooks]</pre>
+  C --> D{shouldQuery?}
+  D -->|否| E[本地結果分支]
+  D -->|是| F[query loop]
+  F --> G{是否呼叫工具}
+  G -->|是| H[tool run + result]
+  H --> F
+  G -->|否| I[完成訊息]
+  E --> J[result]
+  I --> J
+  J --> K[usage/持久化/permission_denials]</pre>
         <div class="impl-checklist">
           <h3>路徑判讀重點</h3>
           <ul>
             <li>真正的「完成」不是模型輸出一句話，而是收尾步驟完成。</li>
-            <li>錯誤處理有分層：可恢復錯誤留在回合內，致命錯誤才中斷整體。</li>
-            <li>回合狀態會影響後續功能（例如 suggestion、memory extraction）。</li>
+            <li>QueryEngine 會把工具權限拒絕累積成 <code>permission_denials</code>，隨 result 一起回傳。</li>
+            <li>會話持久化不是只在尾端寫入；進 query 前就會先記錄使用者訊息，避免中斷後無法 resume。</li>
+            <li>memory prompt 是條件式載入（需 custom system prompt + memory override）。</li>
           </ul>
         </div>
       </section>
@@ -89,9 +95,9 @@
           <p><strong>代價：</strong>需要明確 completion boundary，否則容易迴圈失控。</p>
         </div>
         <div class="decision-card">
-          <h3>決策 3：stop hooks 在回合尾端統一觸發</h3>
-          <p><strong>原因：</strong>保證 hook 看到的是完整回合上下文，而不是中途片段。</p>
-          <p><strong>代價：</strong>hook 會成為尾延遲來源，需要異步與超時控制策略。</p>
+          <h3>決策 3：尾段整合系統訊息並隔離失敗</h3>
+          <p><strong>原因：</strong>QueryEngine 會在尾段整合 query 產生的系統訊息（包含 compact/stop-hooks 相關），並把結果統一輸出，避免中途污染主回合。</p>
+          <p><strong>代價：</strong>尾段邏輯較複雜，需要清楚區分主回覆完成與附加系統訊息處理。</p>
         </div>
       </section>
 
@@ -137,9 +143,9 @@
           <p><strong>防護：</strong>在回合層做可恢復錯誤分流，避免直接崩潰 UI。</p>
         </div>
         <div class="failure-case">
-          <h3>Failure 2：工具權限對話卡住</h3>
-          <p><strong>症狀：</strong>等待 permission prompt，使用者體感像「無回應」。</p>
-          <p><strong>防護：</strong>把 pending permission 狀態顯式化，並阻擋不合理後續動作。</p>
+          <h3>Failure 2：權限拒絕被誤判為系統卡住</h3>
+          <p><strong>症狀：</strong>工具被拒絕後沒有正確回顯，使用者誤以為回合無回應。</p>
+          <p><strong>防護：</strong>明確呈現 <code>permission_denials</code> 與拒絕原因，將拒絕視為可觀測結果而非靜默失敗。</p>
         </div>
         <div class="failure-case">
           <h3>Failure 3：回合尾端 hook 失敗污染主流程</h3>

@@ -46,39 +46,41 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <p>服務層是 Claude Code 與外部世界之間的邊界。所有外部依賴（API 呼叫、MCP 伺服器、檔案系統服務等）都透過服務層封裝，上層流程不直接接觸外部實作。MCP（Model Context Protocol）是關鍵的擴充機制：外部伺服器可透過標準協議提供工具、資源與指令，經過政策過濾後整合進系統。這種設計讓核心流程保持可測試、可替換、可監控。</p>
+        <p>服務層是 Claude Code 與外部世界之間的邊界。所有外部依賴（API 呼叫、MCP 伺服器、檔案系統服務等）都透過服務層封裝，上層流程不直接接觸外部實作。MCP（Model Context Protocol）整合後的能力不是單一清單，而是分開維護 tools / commands / resources，並受 server policy 與 tool deny rules 共同影響。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
-        <pre class="snippet"><code class="language-ts">const { tools, commands, resources } =
-  await getMcpToolsCommandsAndResources(config)
+        <pre class="snippet"><code class="language-ts">await getMcpToolsCommandsAndResources(config, context, onUpdate)
 
-return {
-  tools: excludeToolsByPolicy(tools),
-  commands,
-  resources,
-}</code></pre>
-        <p class="explain-note">先透過 MCP 標準協議拉取所有可用能力，再經由政策過濾排除不合規項目，最後合併到主工具清單提供給回合引擎。</p>
+// onUpdate 逐台回報
+setMcp({
+  tools: mapAndFilterTools(...),
+  commands: mapCommands(...),
+  resources: mapResources(...),
+})
+
+const visibleTools = filterToolsByDenyRules(tools, permissionContext)</code></pre>
+        <p class="explain-note">重點：此流程是「分組並發 + 逐台回報」，不是一次拿到完整聚合物件；另外 policy 與 deny rules 分屬不同層次。</p>
         <pre class="pseudo"><code class="language-text">1. 讀取 MCP 設定，取得已註冊的伺服器清單
-2. 探索各 MCP 伺服器，確認可用性
-3. 建立連線，拉取工具、資源與命令
-4. 對拉取結果套用政策過濾
-5. 將通過過濾的能力合併到主工具清單，提供給回合引擎</code></pre>
+2. 以 local/remote 分組並發連線
+3. 每台連線完成後逐台回報 tools/commands/resources
+4. 套用 server policy 與工具 deny 規則
+5. 分別更新 mcp.tools / mcp.commands / mcp.resources，供回合引擎使用</code></pre>
         <pre class="mermaid">flowchart LR
   A[設定載入] --> B[MCP 伺服器探索]
-  B --> C[建立連線]
-  C --> D[拉取工具+資源+命令]
-  D --> E[政策過濾]
-  E --> F[合併到主工具清單]
+  B --> C[分組並發連線]
+  C --> D[逐台拉取工具+資源+命令]
+  D --> E[server policy + deny rules]
+  E --> F[分別更新 tools/commands/resources]
   F --> G[提供給回合引擎]</pre>
         <div class="impl-checklist">
           <h3>路徑判讀重點</h3>
           <ul>
             <li>設定載入階段決定哪些 MCP 伺服器會被連線，未列入設定的伺服器不會被探索。</li>
-            <li>伺服器探索與連線建立是逐一進行的，任一伺服器失敗不影響其餘伺服器。</li>
-            <li>政策過濾發生在整合階段而非使用階段，確保不合規工具從未進入主清單。</li>
-            <li>合併後的工具清單對回合引擎來說是統一介面，不區分來源是內建還是 MCP。</li>
+            <li>連線是分組並發，單一伺服器失敗不會阻斷其他伺服器整合。</li>
+            <li>MCP 資源工具（list/read resource）是條件式加入，不是永遠常駐。</li>
+            <li>tools、commands、resources 在狀態中分開維護；不是全部合成同一工具清單。</li>
           </ul>
         </div>
       </section>
@@ -146,13 +148,13 @@ return {
         </div>
         <div class="failure-case">
           <h3>Failure 2：遠端工具 schema 不合規</h3>
-          <p><strong>症狀：</strong>MCP 伺服器回傳的工具定義不符合預期的 schema 格式（例如缺少必要欄位、型別不符），導致解析失敗或工具行為異常。</p>
-          <p><strong>防護：</strong>在拉取階段對每個工具定義執行 schema 驗證；不合規的工具定義被跳過並記錄錯誤，不影響同一伺服器中其他合規工具的正常整合。</p>
+          <p><strong>症狀：</strong><code>tools/list</code> 回傳結構不符 schema，該 server 本次工具清單可能整包失敗（回傳空陣列）。</p>
+          <p><strong>防護：</strong>把 schema 失敗視為 server 級事件寫入日誌，並在 UI 明確標示該 server 當前工具不可用，避免誤判為單一工具故障。</p>
         </div>
         <div class="failure-case">
           <h3>Failure 3：政策過濾誤擋合法工具</h3>
-          <p><strong>症狀：</strong>政策規則設定過嚴或規則有誤，導致本應可用的工具被過濾排除，使用者無法使用預期的功能。</p>
-          <p><strong>防護：</strong>政策過濾結果加入詳細日誌，記錄每個被排除工具的名稱與觸發規則；提供乾跑（dry-run）模式讓管理員預覽過濾結果，在正式套用前確認無誤。</p>
+          <p><strong>症狀：</strong>server policy 或 deny rules 設定過嚴，導致預期工具未進入最終可見集合。</p>
+          <p><strong>防護：</strong>記錄每個被排除工具/伺服器的規則命中原因；避免在文件中假設一定有 dry-run 機制，改以可觀測日誌與比對清單為主。</p>
         </div>
       </section>
 

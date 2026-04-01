@@ -16,7 +16,7 @@
         <h1>內建 Commands：完整清單與定位</h1>
         <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
       </div>
-      <p>本頁依 <code>src/commands.ts</code> 的 COMMANDS 與 INTERNAL_ONLY_COMMANDS 彙整。</p>
+      <p>本頁依 <code>src/commands.ts</code> 的註冊匯流點整理，並補上 availability / <code>isEnabled()</code> 的可見性條件。</p>
       <nav class="top-nav" aria-label="主要導覽"></nav>
       <nav class="toc-local" aria-label="章內導覽">
         <a href="#tldr">90 秒總覽</a>
@@ -30,7 +30,7 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <p>Command 的單一來源是 <code>src/commands.ts</code>。其中 <code>COMMANDS()</code> 是主要註冊表，另外 <code>INTERNAL_ONLY_COMMANDS</code> 會在特定條件下追加。這代表「看清註冊表」就是確認內建 command 的最快方式。</p>
+        <p><code>src/commands.ts</code> 是命令註冊的匯流點，不是唯一來源：<code>loadAllCommands()</code> 會把內建命令、skills、plugins、workflows 一起合併，最後再用 availability 與 <code>isEnabled()</code> 過濾可見性。</p>
       </section>
 
       <section class="block" id="runtime-path">
@@ -48,7 +48,7 @@ export async function getCommands(cwd: string): Promise&lt;Command[]&gt; {
   const allCommands = await loadAllCommands(cwd)
   return allCommands.filter(_ => meetsAvailabilityRequirement(_) && isCommandEnabled(_))
 }</code></pre>
-        <p class="explain-note">重點：是否可見，不只看有沒有註冊，還要同時滿足 availability 與 isEnabled。</p>
+        <p class="explain-note">重點：可見性是多段判斷，不只看註冊；另外命令匹配也會檢查 <code>userFacingName</code> 與 <code>aliases</code>，不是只比 <code>name</code>。</p>
       </section>
 
       <section class="block" id="catalog">
@@ -77,23 +77,23 @@ export async function getCommands(cwd: string): Promise&lt;Command[]&gt; {
             </tr>
           </thead>
           <tbody>
-            <tr><td>/assistant, /brief, /proactive</td><td><code>feature('KAIROS')</code> 系列</td><td>助理模式與主動流程</td></tr>
-            <tr><td>/remote-control</td><td><code>feature('BRIDGE_MODE')</code></td><td>橋接遠端控制入口</td></tr>
-            <tr><td>/voice</td><td><code>feature('VOICE_MODE')</code></td><td>語音互動命令</td></tr>
-            <tr><td>/web-setup</td><td><code>feature('CCR_REMOTE_SETUP')</code></td><td>遠端 Web 設定流程</td></tr>
+            <tr><td>/assistant, /brief, /proactive</td><td><code>feature('KAIROS')</code> 系列 + 各命令 <code>isEnabled()</code></td><td>助理模式與主動流程</td></tr>
+            <tr><td>/remote-control</td><td><code>feature('BRIDGE_MODE')</code> + <code>isBridgeEnabled()</code></td><td>橋接遠端控制入口</td></tr>
+            <tr><td>/voice</td><td><code>feature('VOICE_MODE')</code> + availability + <code>isEnabled()</code></td><td>語音互動命令</td></tr>
+            <tr><td>/web-setup</td><td><code>feature('CCR_REMOTE_SETUP')</code> + availability + policy</td><td>遠端 Web 設定流程</td></tr>
             <tr><td>/fork</td><td><code>feature('FORK_SUBAGENT')</code></td><td>子代理分叉流程</td></tr>
             <tr><td>/buddy</td><td><code>feature('BUDDY')</code></td><td>互動夥伴命令</td></tr>
             <tr><td>/workflows</td><td><code>feature('WORKFLOW_SCRIPTS')</code></td><td>工作流腳本命令</td></tr>
             <tr><td>/peers</td><td><code>feature('UDS_INBOX')</code></td><td>同儕通道相關命令</td></tr>
             <tr><td>/torch</td><td><code>feature('TORCH')</code></td><td>實驗性命令入口</td></tr>
-            <tr><td>/login, /logout</td><td><code>!isUsing3PServices()</code></td><td>帳號登入登出（非 3P 模式）</td></tr>
+            <tr><td>/login, /logout</td><td><code>!isUsing3PServices()</code>（provider 條件）</td><td>帳號登入登出（非 3P 模式）</td></tr>
           </tbody>
         </table>
       </section>
 
       <section class="block" id="internal">
         <h2>內部限定 Commands（INTERNAL_ONLY_COMMANDS）</h2>
-        <p>這些命令存在於原始碼，但會受 build / USER_TYPE 條件影響，不一定對外可用：</p>
+        <p>這些命令存在於原始碼，但受 <code>USER_TYPE === 'ant'</code> 且非 demo 等條件影響；在此倉庫中不少條目為 stub 或預設關閉，請勿直接視為可用。</p>
         <pre class="flow"><code>/autofix-pr, /backfill-sessions, /break-cache, /bughunter, /commit,
 /commit-push-pr, /ctx-viz, /good-claude, /issue, /init-verifiers,
 /mock-limits, /bridge-kick, /version, /ultraplan, /subscribe-pr,

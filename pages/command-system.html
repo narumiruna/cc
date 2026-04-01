@@ -16,7 +16,7 @@
         <h1>指令系統：語義入口層</h1>
         <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
       </div>
-      <p>命令層處理「使用者要做什麼」，不是「底層怎麼做」。</p>
+      <p>命令層優先處理「使用者要做什麼」；多數命令偏路由層，但部分命令仍包含狀態切換與權限判斷。</p>
       <nav class="top-nav" aria-label="主要導覽">
         <a data-page="home" href="../index.html">首頁</a>
         <a data-page="01" href="quickstart.html">快速起步</a>
@@ -46,7 +46,7 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <p>指令系統是 Claude Code 的「語義入口層」。使用者輸入 <code>/help</code>、<code>/status</code> 等斜線命令時，系統會在已註冊的命令清單中比對，找到對應的 Command 物件，然後委派給工具層或提示流程執行。命令本身不做重邏輯——它只負責「理解使用者意圖」並路由到正確的執行層。feature gate 機制讓某些命令只在特定條件下可見。</p>
+        <p>指令系統是 Claude Code 的語義入口。使用者輸入斜線命令後，系統會在合併後的命令集比對（內建 + skills/plugins/workflows），再交由 availability 與 <code>isEnabled()</code> 決定是否可見。多數命令偏向路由與委派，但也有例外會處理狀態與權限邏輯。</p>
       </section>
 
       <section class="block" id="runtime-path">
@@ -57,12 +57,12 @@
   status,
   ...(feature('VOICE_MODE') ? [voiceCommand] : []),
 ])</code></pre>
-        <p class="explain-note">命令清單透過 memoize 快取，只在首次呼叫時建立；feature gate 決定條件式命令是否加入清單。</p>
+        <p class="explain-note"><code>COMMANDS()</code> 會被 memoize，但每次 <code>getCommands()</code> 仍會重新跑 availability 與 <code>isEnabled()</code>，所以可見性不只在初次建表時決定。</p>
         <pre class="pseudo"><code class="language-text">建立命令清單（memoize 快取）
-依 feature gate 決定附加命令
+依 feature / 條件載入決定附加命令
 使用者輸入 /xxx
 在命令清單中比對對應 Command 物件
-通過 feature gate 檢查
+同時檢查 availability 與 isEnabled
 委派到工具層或服務層執行
 回傳結果給使用者</code></pre>
         <pre class="mermaid">flowchart TD
@@ -76,9 +76,10 @@
           <h3>路徑判讀重點</h3>
           <ul>
             <li>命令清單只在首次存取時建立，後續呼叫直接回傳快取結果。</li>
-            <li>feature gate 在清單建立階段就決定命令是否存在，而非執行時才檢查。</li>
-            <li>命令物件只做路由與意圖解析，不直接執行 I/O 或呼叫外部 API。</li>
-            <li>解析失敗時應回傳友善提示，不可讓例外直接拋給使用者。</li>
+            <li>命令是否可見要看三段：註冊來源、availability、<code>isEnabled()</code>。</li>
+            <li>命令匹配不只看 <code>name</code>，也會看 <code>userFacingName</code> 與 <code>aliases</code>。</li>
+            <li>多數命令偏路由層，但有些命令（如 brief）仍會處理狀態或權限邏輯。</li>
+            <li>此層未知命令是拋例外（<code>ReferenceError</code>）；友善提示通常由上層轉譯。</li>
           </ul>
         </div>
       </section>
@@ -91,14 +92,14 @@
           <p><strong>代價：</strong>如果 feature gate 狀態在執行期間動態改變，快取的清單不會自動更新，可能導致命令可見性與實際狀態不一致。</p>
         </div>
         <div class="decision-card">
-          <h3>決策 2：用 feature gate 控制可見性而非移除程式碼</h3>
-          <p><strong>原因：</strong>保留完整的命令實作程式碼，只透過 feature gate 決定是否將命令加入清單。這讓實驗性功能可以隨時啟用或關閉，不需要修改程式碼或重新部署。</p>
-          <p><strong>代價：</strong>未啟用的命令程式碼仍存在於打包產物中，增加了 bundle 大小；維護者也需要追蹤哪些 feature flag 對應哪些命令。</p>
+          <h3>決策 2：混合式 gating（條件載入 + 執行期過濾）</h3>
+          <p><strong>原因：</strong>命令系統同時使用 dead-code-elimination 路徑與執行期過濾，兼顧建置體積與執行彈性。前者控制是否載入模組，後者處理當下可見性。</p>
+          <p><strong>代價：</strong>維護者必須分清楚「載入期決定」與「查詢期決定」兩種 gate，文件也要明確標註。</p>
         </div>
         <div class="decision-card">
-          <h3>決策 3：命令只做路由，不做 I/O</h3>
-          <p><strong>原因：</strong>命令層的職責是理解使用者意圖並轉發到正確的執行層。如果命令直接執行 I/O 或呼叫外部 API，會導致命令層與工具層/服務層職責混淆，降低可測試性與可維護性。</p>
-          <p><strong>代價：</strong>增加一層間接呼叫的複雜度，簡單操作也需要經過完整的委派流程。</p>
+          <h3>決策 3：命令以路由為主，但允許少量例外</h3>
+          <p><strong>原因：</strong>把大多數命令維持為薄層，可保持邊界清楚；對需要即時模式切換或互動控制的命令，允許在命令層保留必要邏輯。</p>
+          <p><strong>代價：</strong>例外命令若不受控會讓邊界漂移，因此需要明確審查與文件化。</p>
         </div>
       </section>
 
@@ -142,12 +143,12 @@
         <div class="failure-case">
           <h3>Failure 1：使用者輸入未知命令</h3>
           <p><strong>症狀：</strong>使用者輸入 <code>/foobar</code> 等不存在的斜線命令，命令清單比對不到任何 Command 物件，系統沒有回應或拋出未處理的例外。</p>
-          <p><strong>防護：</strong>在命令比對流程中加入 fallback 邏輯：比對失敗時回傳友善的錯誤提示，列出可用的命令清單供使用者參考，避免靜默失敗。</p>
+          <p><strong>防護：</strong>在命令層保留明確例外（包含可用命令清單）；由上層 UI/CLI 統一轉譯為友善提示，避免各處自行包裝而不一致。</p>
         </div>
         <div class="failure-case">
           <h3>Failure 2：feature gate 狀態不一致導致命令幽靈可見</h3>
-          <p><strong>症狀：</strong>feature gate 在清單建立後才改變狀態，導致快取中的命令清單與實際 feature 狀態不同步——使用者看到已被關閉的命令，或看不到已開啟的命令。</p>
-          <p><strong>防護：</strong>明確約定 feature gate 只在應用程式啟動時讀取一次；如需支援動態切換，提供清除 memoize 快取的機制並在 feature 狀態變更時觸發清單重建。</p>
+          <p><strong>症狀：</strong>把「註冊快取」誤認為「可見性快取」，會錯估命令在不同身份/模式下的實際可用狀態。</p>
+          <p><strong>防護：</strong>區分兩層：<code>COMMANDS()</code> 快取註冊表；<code>getCommands()</code> 每次重新跑 availability 與 <code>isEnabled()</code>。</p>
         </div>
         <div class="failure-case">
           <h3>Failure 3：命令委派失敗但缺乏回饋</h3>

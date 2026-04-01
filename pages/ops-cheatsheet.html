@@ -141,6 +141,7 @@
 
       <section class="block" id="tools">
         <h2>Tools 速查（依 <code>getAllBaseTools()</code> 與 gates）</h2>
+        <p class="explain-note">注意：以下是能力索引，不是保證可見清單。實際可用性同時受 mode / feature / env / provider-model / permission / MCP 連線狀態影響。</p>
         <table class="tradeoff-table">
           <thead>
             <tr>
@@ -151,12 +152,12 @@
           </thead>
           <tbody>
             <tr><td>Read</td><td>讀取檔案或目錄內容</td><td>低</td></tr>
-            <tr><td>Glob</td><td>以 pattern 尋找檔案</td><td>低</td></tr>
-            <tr><td>Grep</td><td>以 regex 搜尋內容</td><td>低</td></tr>
+            <tr><td>Glob</td><td>以 pattern 尋找檔案（embedded search 可能改走內嵌路徑）</td><td>低</td></tr>
+            <tr><td>Grep</td><td>以 regex 搜尋內容（embedded search 可能改走內嵌路徑）</td><td>低</td></tr>
             <tr><td>WebFetch</td><td>抓取並摘要網頁內容</td><td>中</td></tr>
-            <tr><td>WebSearch</td><td>用搜尋引擎找網頁資料</td><td>中</td></tr>
-            <tr><td>ListMcpResourcesTool</td><td>列出 MCP server 提供資源</td><td>中</td></tr>
-            <tr><td>ReadMcpResourceTool</td><td>讀取指定 MCP 資源</td><td>中</td></tr>
+            <tr><td>WebSearch</td><td>用搜尋引擎找網頁資料（受 provider/model 條件影響）</td><td>中</td></tr>
+            <tr><td>ListMcpResourcesTool</td><td>列出 MCP server 提供資源（僅 resources capability 可用）</td><td>中</td></tr>
+            <tr><td>ReadMcpResourceTool</td><td>讀取指定 MCP 資源（僅 resources capability 可用）</td><td>中</td></tr>
             <tr><td>Edit</td><td>局部修改既有檔案內容</td><td>高</td></tr>
             <tr><td>Write</td><td>覆寫或新建檔案內容</td><td>高</td></tr>
             <tr><td>NotebookEdit</td><td>修改 Notebook cell</td><td>高</td></tr>
@@ -165,8 +166,9 @@
             <tr><td>Agent</td><td>建立子代理處理子任務</td><td>中</td></tr>
             <tr><td>TaskOutput</td><td>提交任務最終輸出內容</td><td>低</td></tr>
             <tr><td>TaskStop</td><td>中止正在執行的背景任務</td><td>中</td></tr>
-            <tr><td>TodoWrite</td><td>更新結構化待辦清單</td><td>低</td></tr>
-            <tr><td>TaskCreate</td><td>建立 todo v2 任務</td><td>中</td></tr>
+            <tr><td>SendUserMessage(Brief)</td><td>送出精簡使用者訊息控制（Brief 別名）</td><td>低</td></tr>
+            <tr><td>TodoWrite</td><td>更新結構化待辦清單（Task v2 開啟時互斥停用）</td><td>低</td></tr>
+            <tr><td>TaskCreate</td><td>建立 todo v2 任務（與 TodoWrite 互斥）</td><td>中</td></tr>
             <tr><td>TaskGet</td><td>讀取 todo v2 任務細節</td><td>低</td></tr>
             <tr><td>TaskUpdate</td><td>更新 todo v2 任務狀態</td><td>中</td></tr>
             <tr><td>TaskList</td><td>列出 todo v2 任務</td><td>低</td></tr>
@@ -174,7 +176,7 @@
             <tr><td>Skill</td><td>載入特定專業技能流程</td><td>中</td></tr>
             <tr><td>EnterPlanMode</td><td>進入計畫模式（先規劃）</td><td>低</td></tr>
             <tr><td>ExitPlanMode</td><td>離開計畫模式</td><td>低</td></tr>
-            <tr><td>REPL</td><td>沙箱式互動執行容器</td><td>高</td></tr>
+            <tr><td>REPL</td><td>沙箱式互動執行容器（受 ant/entrypoint 條件影響）</td><td>高</td></tr>
             <tr><td>ToolSearch</td><td>搜尋可用工具索引</td><td>低</td></tr>
             <tr><td>EnterWorktree</td><td>切換到工作樹模式</td><td>中</td></tr>
             <tr><td>ExitWorktree</td><td>離開工作樹模式</td><td>中</td></tr>
