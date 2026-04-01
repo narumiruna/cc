@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p>Claude Code 是一個大型 CLI 應用，理解它的關鍵是先掌握「入口→協調層→執行層」的分工。入口負責快速分流，協調層組裝能力，執行層按回合處理。只要抓住這三層的責任邊界，就能用最短時間建立全局觀，後續深入任何模組都不會迷路。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <pre class="snippet"><code class="language-ts">// 啟動重點：先分流，再載入主流程
 if (isVersionFlag(args)) {
   console.log(VERSION)
@@ -92,10 +83,6 @@ else:
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：入口做 fast-path 分流</h3>
           <p><strong>原因：</strong>避免冷啟動延遲。像 <code>--version</code> 這類查詢不需要載入整個系統，直接在入口回覆即可。</p>
@@ -115,10 +102,6 @@ else:
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <thead>
             <tr>
@@ -153,10 +136,6 @@ else:
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：fast-path 判斷遺漏新指令</h3>
           <p><strong>症狀：</strong>新增的快速查詢指令仍走完整初始化路徑，回應變慢。</p>
@@ -176,10 +155,6 @@ else:
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <ul>
           <li>執行 <code>--version</code>：確認立即返回版本號，不觸發完整初始化。</li>
           <li>執行完整初始化路徑：確認設定、命令、工具皆正確載入且無遺漏。</li>

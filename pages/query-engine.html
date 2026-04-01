@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p>回合引擎（QueryEngine）負責把「使用者訊息」變成「可控的執行回合」。它不只送 API，還要協調工具權限、訊息累積、usage 計算、錯誤恢復與持久化。你可以把它視為單回合的交通總站。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <pre class="pseudo"><code class="language-text">使用者提交 prompt
 建立本回合 context（工具、權限、快取參數）
 進入 query loop
@@ -87,10 +78,6 @@
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：把回合責任集中在引擎層</h3>
           <p><strong>原因：</strong>避免工具層各自管理 usage、持久化與結束條件，導致行為分裂。</p>
@@ -110,10 +97,6 @@
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <thead>
             <tr>
@@ -148,10 +131,6 @@
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：prompt 過長造成回合中斷</h3>
           <p><strong>症狀：</strong>模型拒絕處理或輸出錯誤事件。</p>
@@ -171,10 +150,6 @@
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <ul>
           <li>送出一個不需工具的 prompt：確認回合正常完成並持久化。</li>
           <li>送出會觸發工具的 prompt：確認 loop 可正確往返並收斂。</li>

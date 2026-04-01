@@ -45,19 +45,10 @@
 <main>
 <section class="block" id="tldr">
 <h2>90 秒總覽</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l1">L1 入門</span>
-<span class="depth-tag depth-l2">L2 進階</span>
-</div>
 <p>權限系統是 Claude Code 執行工具前的安全閘門。每當模型要呼叫一個工具，系統會依序檢查：① 當前模式（Plan / Auto Accept / Default）是否允許、② 使用者設定的 allow/deny 規則是否匹配、③ 工具本身的安全檢查是否通過。如果以上都通過，工具才能執行；否則系統會拒絕或詢問使用者確認。這個三層防護確保使用者始終掌握控制權。</p>
 </section>
 <section class="block" id="runtime-path">
 <h2>執行路徑（主骨架）</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l1">L1 入門</span>
-<span class="depth-tag depth-l2">L2 進階</span>
-<span class="depth-tag depth-l3">L3 架構</span>
-</div>
 <pre class="snippet"><code class="language-ts">const result = await canUseTool(tool, input, ctx)
 if (result.behavior === 'deny') {
   return { ok: false }
@@ -90,10 +81,6 @@ return tool.run(input, ctx)</code></pre>
 </section>
 <section class="block" id="decisions">
 <h2>關鍵決策（為什麼這樣設計）</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l2">L2 進階</span>
-<span class="depth-tag depth-l3">L3 架構</span>
-</div>
 <div class="decision-card">
 <h3>決策 1：三層檢查順序固定（模式→規則→工具）</h3>
 <p><strong>原因：</strong>確保最廣泛的限制先生效。模式是全域控制，規則是使用者自訂偏好，工具檢查是最細粒度的安全確認。</p>
@@ -112,10 +99,6 @@ return tool.run(input, ctx)</code></pre>
 </section>
 <section class="block" id="tradeoffs">
 <h2>替代方案與取捨</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l2">L2 進階</span>
-<span class="depth-tag depth-l3">L3 架構</span>
-</div>
 <table class="tradeoff-table">
 <thead>
 <tr>
@@ -167,10 +150,6 @@ return tool.run(input, ctx)</code></pre>
 </section>
 <section class="block" id="failure-modes">
 <h2>失敗路徑與防護</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l2">L2 進階</span>
-<span class="depth-tag depth-l3">L3 架構</span>
-</div>
 <div class="failure-case">
 <h3>Failure 1：模式切換後規則快取未更新</h3>
 <p><strong>症狀：</strong>切換到 Plan mode 後，寫入工具仍能執行，因為舊模式的快取規則還在生效。</p>
@@ -189,10 +168,6 @@ return tool.run(input, ctx)</code></pre>
 </section>
 <section class="block" id="implementation">
 <h2>實作驗證（你改完要怎麼確認）</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l1">L1 入門</span>
-<span class="depth-tag depth-l2">L2 進階</span>
-</div>
 <ul>
 <li>確認 Plan mode 下寫入工具被拒絕：切換到 Plan mode，嘗試執行寫入操作，應收到拒絕回應。</li>
 <li>確認 deny 規則正確攔截：新增一條 deny 規則後，對應工具呼叫應被阻擋。</li>

@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p>Claude Code 的提示並非一整塊靜態文字，而是由多層控制面組成的架構。最外層是系統提示組裝（system prompt assembly），定義基線行為與動態注入區段；中間層包含工具提示、技能指令與記憶注入，各自在特定時機觸發；最內層是側查詢（side-query）與子代理提示，執行高度聚焦的分析任務。整體共有 8 大提示家族，涵蓋從全域行為到單一工具的完整控制範圍。理解這套分層結構，才能在對的層級做對的調校，避免提示之間互相衝突。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <p>當使用者輸入一個回合後，提示系統會按照以下路徑組裝並執行：</p>
         <pre class="pseudo"><code class="language-text">input: 使用者訊息
 1. 組裝系統提示（靜態基線 + 動態注入）
@@ -102,10 +93,6 @@
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：分層提示架構而非單一提示</h3>
           <p><strong>原因：</strong>單一巨型提示會在不同職責之間產生衝突（例如安全規則與工具使用指引互相干擾），且難以局部更新。分層設計讓每一層各司其職：系統提示定義基線、工具提示嵌入護欄、側查詢提示聚焦單一任務。</p>
@@ -125,10 +112,6 @@
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <thead>
             <tr>
@@ -169,10 +152,6 @@
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：權限邊界模糊</h3>
           <p><strong>症狀：</strong>提示在應該只做驗證的路徑上編輯了檔案，或在唯讀分析中觸發了寫入操作。</p>
@@ -202,10 +181,6 @@
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <h3>合併前檢查</h3>
         <ul>
           <li>此提示是否掛載在明確命名的執行路徑上？</li>

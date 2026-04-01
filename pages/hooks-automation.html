@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p>Hooks 系統讓使用者在 Claude Code 的事件節點上掛載自動化行為：可以是 shell 命令、LLM 提示、HTTP 呼叫，或完整的代理驗證迴圈。所有掛鉤透過 <code>settings.json</code> 配置，以「事件 → 匹配器 → 掛鉤」三層管線運作。匹配器重用權限規則語法，掛鉤支援同步、非同步、一次性等執行模式。掌握這套管線，就能在不修改核心程式碼的前提下擴充任何工作流。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <pre class="pseudo"><code class="language-text">input: 事件觸發（例如 PreToolUse）
 載入 settings.json 中對應事件的 matcher 列表
 for each matcher:
@@ -122,10 +113,6 @@ for each matcher:
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：事件-匹配器-掛鉤三層架構</h3>
           <p><strong>原因：</strong>將「何時」、「對誰」、「做什麼」三個關注點分離。使用者可以在同一事件上掛載多組匹配器，每組匹配器再各自掛載多個掛鉤，組合彈性極高。</p>
@@ -145,10 +132,6 @@ for each matcher:
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <thead>
             <tr>
@@ -189,10 +172,6 @@ for each matcher:
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：Hook 超時阻塞主流程</h3>
           <p><strong>症狀：</strong>同步掛鉤執行時間超過預期，使用者操作卡頓或無回應。</p>
@@ -212,10 +191,6 @@ for each matcher:
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <ul>
           <li>在 <code>settings.json</code> 新增一個 PreToolUse command hook：確認對應工具被呼叫時掛鉤確實觸發。</li>
           <li>測試匹配器條件：修改 <code>if</code> 條件，確認只有符合 pattern 的工具調用才觸發掛鉤。</li>

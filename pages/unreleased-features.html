@@ -32,11 +32,6 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <p>從 <code>src/</code> 來看，Claude Code 內部存在大量以 <code>feature('...')</code> 控制的功能閘門。這些功能不一定是「永遠未開放」，但至少代表它們會依 build、環境、帳號或策略條件分批啟用。最明顯的訊號包括：assistant/kairos 系列、direct connect、ssh remote、bridge remote control、workflow scripts、team memory、buddy、voice mode、背景 session 與 runner 類入口。</p>
       </section>
 
@@ -150,10 +145,6 @@
 
       <section class="block" id="implementation">
         <h2>如何自行驗證（可重現）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <pre class="snippet"><code class="language-bash"># 1) 列出 src 內所有 feature gate
 rg "feature\('[A-Z0-9_]+'\)" src
 

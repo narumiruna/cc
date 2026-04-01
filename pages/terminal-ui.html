@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p>Claude Code 沒有瀏覽器，卻實作了一套完整的 React 渲染管線來驅動終端機介面。它透過<strong>自訂 React 調和器</strong>（Custom Reconciler）將元件樹轉換成虛擬 DOM，再由 Facebook 的 <strong>Yoga 引擎</strong>進行 Flexbox 排版，最終經由<strong>雙緩衝差異引擎</strong>只輸出有變動的 ANSI 跳脫序列到 TTY。這套架構讓開發者可以用宣告式 JSX 撰寫終端 UI，同時享有增量渲染與記憶體池化帶來的高效能。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（渲染管線）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <pre class="pseudo"><code class="language-text">input: React 元件樹更新
 1. React 調和器比對新舊元件樹
 2. 將變更分為三類：Styles / Text styles / Event handlers
@@ -124,10 +115,6 @@ type InkElementType =
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：自建 React 調和器而非直接操作 ANSI</h3>
           <p><strong>原因：</strong>終端 UI 的狀態管理與瀏覽器 UI 本質相同——都是「狀態變更 → 最小化重繪」。使用 React 調和器可以沿用宣告式元件模型，開發者寫 JSX 即可，不需手動追蹤游標位置與清除邏輯。</p>
@@ -147,10 +134,6 @@ type InkElementType =
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <thead>
             <tr>
@@ -191,10 +174,6 @@ type InkElementType =
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：Yoga 原生綁定記憶體洩漏</h3>
           <p><strong>症狀：</strong>長時間執行後記憶體持續增長，最終導致 OOM 或嚴重效能衰退。</p>
@@ -214,10 +193,6 @@ type InkElementType =
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <ul>
           <li>渲染基本元件：確認 <code>Box</code>、<code>Text</code> 元件能正確顯示於終端，排版符合 Flexbox 語意。</li>
           <li>驗證增量渲染：只更新單一元件的文字，確認 Diff Engine 只輸出該區域的 ANSI 序列，而非全畫面重繪。</li>

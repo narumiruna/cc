@@ -2,3 +2,4 @@
 - Record website structure changes in documentation as part of implementation updates.
 - Base website/article claims on direct `src/` code evidence rather than external summaries.
 - Use Claude Code brand orange as the default website accent palette.
+- Avoid rigid visual labeling like L1/L2/L3 in website copy; prefer flexible reading-path wording.

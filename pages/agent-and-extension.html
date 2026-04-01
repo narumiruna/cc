@@ -45,20 +45,11 @@
 <main>
 <section class="block" id="tldr">
 <h2>90 秒總覽</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l1">L1 入門</span>
-<span class="depth-tag depth-l2">L2 進階</span>
-</div>
 <p>代理與擴充機制讓 Claude Code 能把工作委派給子代理（sub-agent），並透過 MCP 擴充工具載入外部能力。子代理的核心概念是「任務委派」：主流程定義任務範圍與 ownership，啟動子代理執行，最後整合結果。擴充機制則讓第三方可以在不修改核心程式碼的前提下增加新工具、新命令或新資源。兩者都必須在安全邊界內運作。</p>
 </section>
 
 <section class="block" id="runtime-path">
 <h2>執行路徑（主骨架）</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l1">L1 入門</span>
-<span class="depth-tag depth-l2">L2 進階</span>
-<span class="depth-tag depth-l3">L3 架構</span>
-</div>
 <pre class="snippet"><code class="language-ts">const task = createAgentTask({ prompt, ownership })
 startTask(task)
 const result = await waitTask(task.id)
@@ -88,10 +79,6 @@ integrateResult(result)</code></pre>
 
 <section class="block" id="decisions">
 <h2>關鍵決策（為什麼這樣設計）</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l2">L2 進階</span>
-<span class="depth-tag depth-l3">L3 架構</span>
-</div>
 <div class="decision-card">
 <h3>決策 1：子代理有獨立的工具與權限範圍</h3>
 <p><strong>原因：</strong>避免越權操作。子代理若共享主流程的完整權限，可能存取或修改超出任務範圍的資源，導致非預期的副作用。獨立範圍確保每個子代理只能操作被明確授權的部分。</p>
@@ -111,10 +98,6 @@ integrateResult(result)</code></pre>
 
 <section class="block" id="tradeoffs">
 <h2>替代方案與取捨</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l2">L2 進階</span>
-<span class="depth-tag depth-l3">L3 架構</span>
-</div>
 <table class="tradeoff-table">
 <thead>
 <tr>
@@ -167,10 +150,6 @@ integrateResult(result)</code></pre>
 
 <section class="block" id="failure-modes">
 <h2>失敗路徑與防護</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l2">L2 進階</span>
-<span class="depth-tag depth-l3">L3 架構</span>
-</div>
 <div class="failure-case">
 <h3>Failure 1：子代理任務超時</h3>
 <p><strong>症狀：</strong>waitTask 長時間未返回，主流程被阻塞，後續操作全部停滯。在多子代理場景下，一個超時可能導致整體任務卡住。</p>
@@ -190,10 +169,6 @@ integrateResult(result)</code></pre>
 
 <section class="block" id="implementation">
 <h2>實作驗證（你改完要怎麼確認）</h2>
-<div class="depth-row">
-<span class="depth-tag depth-l1">L1 入門</span>
-<span class="depth-tag depth-l2">L2 進階</span>
-</div>
 <ul>
 <li>確認子代理任務正確啟動與完成：建立一個簡單的委派任務，驗證 createAgentTask → startTask → waitTask → integrateResult 的完整流程能正常執行並回傳預期結果。</li>
 <li>確認 ownership 邊界有效隔離：同時啟動兩個子代理並指定不同的 ownership 範圍，驗證任一子代理無法存取另一方的責任區。</li>

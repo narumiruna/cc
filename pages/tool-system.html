@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p>工具系統的核心概念是「工具契約」與「工具清單」分離。每個工具透過 Tool 介面宣告名稱、描述、參數 schema 與執行邏輯（這是契約）。但工具是否在當前回合可用，取決於 feature flag、環境條件與使用者模式等動態篩選（這是清單組裝）。最終可見的工具集會傳給模型，模型才能決定要呼叫哪些工具。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <pre class="snippet"><code class="language-ts">export function getAllBaseTools(): Tools {
   return [
     AgentTool,
@@ -98,10 +89,6 @@
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：工具定義與可見性分離</h3>
           <p><strong>原因：</strong>同一個工具可以依據場景動態開關。例如在受限模式下隱藏危險工具，在完整模式下全部可用，無需維護多份工具定義。</p>
@@ -121,10 +108,6 @@
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <thead>
             <tr>
@@ -159,10 +142,6 @@
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：feature flag 設定錯誤導致工具消失</h3>
           <p><strong>症狀：</strong>使用者預期可用的工具在回合中找不到，模型無法呼叫該工具。</p>
@@ -182,10 +161,6 @@
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <ul>
           <li>確認基礎工具清單完整：呼叫 <code>getAllBaseTools()</code> 並檢查回傳的工具數量與預期一致。</li>
           <li>確認 feature flag 切換後工具可見性改變：開啟／關閉特定 flag，驗證對應工具出現或消失。</li>

@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p>啟動流程是整個系統的入口邏輯，它負責決定「這次執行走快速路徑還是完整初始化」。快速路徑用於 <code>--version</code>、<code>--help</code> 等即時回覆；完整路徑會依序載入 profiler、主模組、設定檔、上下文工廠，最後進入互動迴圈。理解啟動流程的效能分層策略，是掌握整個系統的第一步。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <pre class="snippet"><code class="language-ts">if (args[0] === '--version') {
   console.log(VERSION)
   return
@@ -99,10 +90,6 @@ await import('../main.js')</code></pre>
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：CLI 入口只做分流，不做初始化</h3>
           <p><strong>原因：</strong>入口檔案的唯一職責是判斷走快速路徑還是完整路徑。把初始化邏輯留給主模組，保持入口輕量且啟動速度最快。</p>
@@ -122,10 +109,6 @@ await import('../main.js')</code></pre>
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <caption>替代方案比較表</caption>
           <thead>
@@ -161,10 +144,6 @@ await import('../main.js')</code></pre>
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：參數解析錯誤導致路由失敗</h3>
           <p><strong>症狀：</strong>使用者輸入未預期的參數格式（如 <code>--versoin</code> 拼寫錯誤），導致既未走快速路徑也未正確進入完整初始化。</p>
@@ -184,10 +163,6 @@ await import('../main.js')</code></pre>
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <ul>
           <li>確認 <code>--version</code> 回應時間 &lt; 100ms，不觸發完整初始化路徑。</li>
           <li>確認 profiler 的 <code>cli_entry</code> checkpoint 有正確記錄，可在日誌中查閱。</li>

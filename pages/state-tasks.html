@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p><code>promptSuggestion</code> 不是單純 UI 提示，而是跨越「回合尾端 hook、AppState、鍵盤互動、telemetry、speculation」的小型子系統。它適合拿來理解：狀態欄位如何驅動互動行為。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（PromptSuggestion 案例）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <pre class="pseudo"><code class="language-text">回合結束觸發 stop hook
 executePromptSuggestion 啟動
 檢查 suppress 條件（plan mode / pending permission / rate limit）
@@ -92,10 +83,6 @@ UI 顯示 ghost text
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：先寫 AppState，再由 UI 消費</h3>
           <p><strong>原因：</strong>把建議當成狀態，才能讓 REPL、Typeahead、紀錄事件共享同一來源。</p>
@@ -115,10 +102,6 @@ UI 顯示 ghost text
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <thead>
             <tr>
@@ -153,10 +136,6 @@ UI 顯示 ghost text
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：建議內容是 meta 文字或錯誤訊息</h3>
           <p><strong>症狀：</strong>出現「nothing to suggest」等非使用者語句。</p>
@@ -176,10 +155,6 @@ UI 顯示 ghost text
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <ul>
           <li>連續完成兩輪對話：確認第二輪後才會產生建議（early conversation gate）。</li>
           <li>打開 plan mode 或觸發 permission prompt：確認建議被抑制且不干擾主互動。</li>

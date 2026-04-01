@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p>服務層是 Claude Code 與外部世界之間的邊界。所有外部依賴（API 呼叫、MCP 伺服器、檔案系統服務等）都透過服務層封裝，上層流程不直接接觸外部實作。MCP（Model Context Protocol）是關鍵的擴充機制：外部伺服器可透過標準協議提供工具、資源與指令，經過政策過濾後整合進系統。這種設計讓核心流程保持可測試、可替換、可監控。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <pre class="snippet"><code class="language-ts">const { tools, commands, resources } =
   await getMcpToolsCommandsAndResources(config)
 
@@ -94,10 +85,6 @@ return {
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：外部依賴必須經過服務層</h3>
           <p><strong>原因：</strong>所有外部呼叫（API、MCP 伺服器、檔案系統）統一經過服務層封裝，讓上層邏輯只依賴抽象介面。這使得核心流程可以獨立測試與維護，不受外部實作變動影響。</p>
@@ -117,10 +104,6 @@ return {
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <caption>替代方案比較表</caption>
           <thead>
@@ -156,10 +139,6 @@ return {
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：MCP 伺服器連線失敗</h3>
           <p><strong>症狀：</strong>目標 MCP 伺服器無法連線（網路不通、伺服器未啟動、認證失敗），導致該伺服器提供的工具與資源全部缺失。</p>
@@ -179,10 +158,6 @@ return {
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <ul>
           <li>確認 MCP 伺服器連線成功：啟動後日誌應顯示各伺服器的連線狀態，無非預期的連線錯誤。</li>
           <li>確認工具清單正確合併：回合引擎拿到的工具清單應包含內建工具與所有已連線 MCP 伺服器提供的合規工具。</li>

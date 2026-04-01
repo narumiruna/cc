@@ -16,46 +16,26 @@
         <h1>Claude Code 初學者架構教學</h1>
         <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
       </div>
-      <p>本教學採同頁多層次設計：每章同時提供 90 秒總覽、執行路徑、設計取捨、失敗路徑與實作驗證，讓不同程度讀者都能在同一頁閱讀。</p>
-      <nav class="top-nav" aria-label="主要導覽">
-        <a data-page="home" href="index.html">首頁</a>
-        <a data-page="01" href="pages/quickstart.html">快速起步</a>
-        <a data-page="02" href="pages/runtime-entry.html">啟動流程</a>
-        <a data-page="03" href="pages/command-system.html">指令系統</a>
-        <a data-page="04" href="pages/tool-system.html">工具系統</a>
-        <a data-page="05" href="pages/query-engine.html">回合引擎</a>
-        <a data-page="06" href="pages/services-mcp.html">服務與 MCP</a>
-        <a data-page="07" href="pages/state-tasks.html">狀態與任務</a>
-        <a data-page="08" href="pages/permissions-modes.html">模式與權限</a>
-        <a data-page="09" href="pages/memory-system.html">記憶系統</a>
-        <a data-page="10" href="pages/agent-and-extension.html">代理與擴充</a>
-        <a data-page="11" href="pages/prompt-system.html">提示系統</a>
-        <a data-page="12" href="pages/hooks-automation.html">Hooks 與自動化</a>
-        <a data-page="13" href="pages/terminal-ui.html">終端 UI</a>
-      </nav>
+      <p>本教學採三層資訊架構：首頁先選模組，再進入主題群組頁，最後閱讀各章節的由淺入深內容。</p>
+      <nav class="top-nav" aria-label="主要導覽"></nav>
     </header>
 
     <main class="home-main">
       <section class="block">
-        <h2>先選你的閱讀深度</h2>
-        <p>本網站採「同頁多層次」架構：每章都從快讀到深挖，避免你在多頁切換中迷路。</p>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 實務</span>
-          <span class="depth-tag depth-l3">L3 原理</span>
-        </div>
+        <h2>三種閱讀入口</h2>
+        <p>同一章可以用不同方式讀，不需要被固定層級格式綁住。</p>
         <div class="path-grid">
           <article class="path-card">
-            <h3>L1：90 秒建立全貌</h3>
-            <p>快速抓責任邊界與主流程，先建立心智圖再進細節。</p>
+            <h3>先抓全貌</h3>
+            <p>用最短時間掌握責任邊界與主流程，建立共同語言。</p>
           </article>
           <article class="path-card">
-            <h3>L2：看懂執行與決策</h3>
-            <p>專注執行路徑、關鍵判斷與常見改動點，能直接落地實作。</p>
+            <h3>沿著執行路徑看</h3>
+            <p>聚焦關鍵判斷、狀態轉換與常見改動點，直接對應實作。</p>
           </article>
           <article class="path-card">
-            <h3>L3：理解取捨與失敗路徑</h3>
-            <p>分析替代方案與邊界條件，建立可維護、可擴充的設計觀。</p>
+            <h3>深入取捨與風險</h3>
+            <p>對照替代方案與失敗路徑，建立可維護的設計判斷。</p>
           </article>
         </div>
       </section>
@@ -75,7 +55,7 @@
 
       <section class="block">
         <h2>四階段學習路線</h2>
-        <p>建議按階段前進，每階段都先 L1，再依需求深入 L2 與 L3。</p>
+        <p>建議按階段前進，先看總覽，再依需求深入執行細節與取捨分析。</p>
         <div class="phase-grid">
           <div class="phase-item"><strong>階段一：基礎概念</strong><span>快速起步 → 啟動流程 → 指令系統</span></div>
           <div class="phase-item"><strong>階段二：核心機制</strong><span>工具系統 → 回合引擎 → 服務與 MCP</span></div>
@@ -149,8 +129,8 @@ graph LR
           <p>不用。先看首頁的角色路線快速上手，再補四階段路線，效率最高。</p>
         </div>
         <div class="decision-card">
-          <h3>每章都要看 L1、L2、L3 嗎？</h3>
-          <p>不必。建議先讀 L1 建立地圖，遇到工作需求時再下鑽 L2/L3。</p>
+          <h3>每章都要從頭看到尾嗎？</h3>
+          <p>不必。建議先看總覽建立地圖，遇到工作需求時再下鑽細節段落。</p>
         </div>
         <div class="decision-card">
           <h3>我想直接改程式，先看哪裡？</h3>
@@ -158,97 +138,77 @@ graph LR
         </div>
       </section>
 
-      <section class="grid" aria-label="章節索引">
-      <article class="card">
-        <div class="card-header"><span class="card-num">0</span><h2>架構總覽</h2></div>
-        <p>這是給第一次進站的 overview tab。先用一頁看懂入口分流、主程序協調、回合引擎執行與工具/任務層的關係，再決定要深讀哪一章。</p>
-        <a class="card-link" href="pages/architecture-overview.html">開始</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">1</span><h2>快速起步</h2></div>
-        <p>先建立整體心智圖，再進入主流程。本章以鳥瞰視角介紹 Claude Code 的核心模組與彼此的協作關係，幫助你在 90 秒內掌握系統全貌。適合作為所有章節的起點。</p>
-        <a class="card-link" href="pages/quickstart.html">開始</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">2</span><h2>啟動流程</h2></div>
-        <p>從 CLI 入口到互動模式的完整啟動路徑。本章拆解指令列參數解析、環境初始化、模式分流（REPL／單次執行／管線模式）的每一步驟，讓你理解程式啟動時到底發生了什麼。</p>
-        <a class="card-link" href="pages/runtime-entry.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">3</span><h2>指令系統</h2></div>
-        <p>命令如何承載語義，並與工具系統協作。本章解析 slash command 的註冊、解析與分派機制，說明指令如何轉換為具體的工具呼叫與回應流程。</p>
-        <a class="card-link" href="pages/command-system.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">4</span><h2>工具系統</h2></div>
-        <p>Tool 契約、工具集組裝與閘控機制。本章深入探討工具的定義介面、參數驗證規則與權限閘控流程，並說明系統如何動態組裝可用工具清單提供給模型使用。</p>
-        <a class="card-link" href="pages/tool-system.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">5</span><h2>回合引擎</h2></div>
-        <p>從 submit 到收尾的完整回合生命週期剖析。本章追蹤一次使用者輸入如何觸發 API 呼叫、工具執行與串流回應，並解析重試、中斷與錯誤復原等邊界情境。</p>
-        <a class="card-link" href="pages/query-engine.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">6</span><h2>服務與 MCP</h2></div>
-        <p>外部依賴整合邊界與能力映射機制。本章說明 Claude Code 如何透過 Model Context Protocol 連接外部服務，並解析服務發現、能力宣告與錯誤處理的設計。</p>
-        <a class="card-link" href="pages/services-mcp.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">7</span><h2>狀態與任務</h2></div>
-        <p>狀態欄位如何驅動互動行為的實例分析。本章以 PromptSuggestion 為切入點，展示狀態機的設計模式，並說明任務佇列如何管理多步驟操作的執行順序與相依關係。</p>
-        <a class="card-link" href="pages/state-tasks.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">8</span><h2>模式與權限</h2></div>
-        <p>工具操作前的安全決策流程。本章解析權限模式（Plan／Auto Accept／預設模式）的切換邏輯，並追蹤每一次工具呼叫如何經過權限閘門的許可或拒絕判斷。</p>
-        <a class="card-link" href="pages/permissions-modes.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">9</span><h2>記憶系統</h2></div>
-        <p>Session、Durable、Team 三層記憶機制的完整剖析。本章說明各層記憶的儲存範圍、載入時機與合併策略，並解析 CLAUDE.md 檔案如何成為持久記憶的載體。</p>
-        <a class="card-link" href="pages/memory-system.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">10</span><h2>代理與擴充</h2></div>
-        <p>委派工作與擴充能力的安全方法。本章介紹子代理（sub-agent）的委派機制、MCP 擴充工具的載入方式，以及如何在保持安全邊界的前提下擴展系統能力。</p>
-        <a class="card-link" href="pages/agent-and-extension.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">11</span><h2>提示系統</h2></div>
-        <p>提示不是單一文字區塊，而是分層控制面。本章解析系統提示組裝、工具提示、側查詢提示與代理提示的八大家族，並說明如何撰寫可靠的提示與避免常見失敗模式。</p>
-        <a class="card-link" href="pages/prompt-system.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">12</span><h2>Hooks 與自動化</h2></div>
-        <p>事件驅動的行為擴充機制。本章說明如何透過 Hook 在工具呼叫、訊息送出等事件前後自動執行 shell 指令、LLM 提示、HTTP 請求或代理驗證，以及事件-匹配器-掛鉤的三層管線設計。</p>
-        <a class="card-link" href="pages/hooks-automation.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">13</span><h2>終端 UI</h2></div>
-        <p>用 React 渲染終端機介面的完整框架。本章拆解自建 React 調和器、Yoga Flexbox 排版引擎、雙緩衝與 Blit 優化、2D Cell 螢幕模型等核心技術，理解 CLI 如何實現瀏覽器等級的渲染能力。</p>
-        <a class="card-link" href="pages/terminal-ui.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">14</span><h2>未開放功能雷達</h2></div>
-        <p>透過閱讀 src/ 原始碼中的 feature gate、條件載入與隱藏入口，整理目前疑似尚未全面開放的功能方向，附上可追溯的檔案證據與判讀方法。</p>
-        <a class="card-link" href="pages/unreleased-features.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">15</span><h2>內建 Commands</h2></div>
-        <p>完整列出內建 slash commands，並對照 COMMANDS 註冊表、feature gate 與內部限定清單，快速判讀哪些命令在不同環境可用。</p>
-        <a class="card-link" href="pages/commands-catalog.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">16</span><h2>內建 Tools</h2></div>
-        <p>完整列出內建工具，解釋 getAllBaseTools/getTools 的組裝與過濾邏輯，並整理 simple mode、REPL、permission 對工具可見性的影響。</p>
-        <a class="card-link" href="pages/tools-catalog.html">前往</a>
-      </article>
-      <article class="card">
-        <div class="card-header"><span class="card-num">17</span><h2>操作速查表</h2></div>
-        <p>把 command/tool 濃縮成操作手冊格式：每列一個項目，直接給用途與風險等級，方便在實作前先做風險判斷。</p>
-        <a class="card-link" href="pages/ops-cheatsheet.html">前往</a>
-      </article>
+      <section class="grid" aria-label="模組導覽">
+        <article class="card">
+          <div class="card-header"><span class="card-num">G0</span><h2>架構總覽</h2></div>
+          <p>先用一頁掌握核心模組邊界與協作關係，再決定下一步要深讀哪個系統。</p>
+          <a class="card-link" href="pages/group-architecture.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G1</span><h2>啟動流程</h2></div>
+          <p>從第一個輸入到進入互動回合的啟動路徑，先看快速地圖再看啟動細節。</p>
+          <a class="card-link" href="pages/group-startup.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G2</span><h2>指令系統</h2></div>
+          <p>斜線命令如何註冊、過濾、路由，並與命令清單實際可見性銜接。</p>
+          <a class="card-link" href="pages/group-command-system.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G3</span><h2>工具系統</h2></div>
+          <p>工具契約、組裝、過濾與操作風險判讀，包含完整工具/命令速查。</p>
+          <a class="card-link" href="pages/group-tool-system.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G4</span><h2>回合引擎</h2></div>
+          <p>一次 submit 如何穿過系統提示、工具呼叫、串流輸出與收尾。</p>
+          <a class="card-link" href="pages/group-query-engine.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G5</span><h2>MCP 與服務</h2></div>
+          <p>外部服務整合、MCP 工具資源注入與政策邊界的交會點。</p>
+          <a class="card-link" href="pages/group-services-mcp.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G6</span><h2>狀態與任務</h2></div>
+          <p>狀態變化如何驅動互動，任務如何跨回合同步與追蹤進度。</p>
+          <a class="card-link" href="pages/group-state-tasks.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G7</span><h2>模式與權限</h2></div>
+          <p>工具呼叫前的安全閘門與模式切換，決定哪些操作可被執行。</p>
+          <a class="card-link" href="pages/group-permissions-modes.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G8</span><h2>記憶系統</h2></div>
+          <p>Session 與持久記憶如何載入、合併與影響當前對話決策。</p>
+          <a class="card-link" href="pages/group-memory-system.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G9</span><h2>代理與擴充</h2></div>
+          <p>子代理、委派流程與擴充策略，如何在安全邊界內擴展能力。</p>
+          <a class="card-link" href="pages/group-agent-extension.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G10</span><h2>提示系統</h2></div>
+          <p>提示組裝分層與行為控制，從系統提示到工具提示的完整路徑。</p>
+          <a class="card-link" href="pages/group-prompt-system.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G11</span><h2>Hooks 與自動化</h2></div>
+          <p>事件觸發、自動執行、驗證與保護，建立可重複的工作流程。</p>
+          <a class="card-link" href="pages/group-hooks-automation.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G12</span><h2>終端 UI</h2></div>
+          <p>CLI 介面渲染引擎、輸入互動、視覺更新與終端限制下的設計取捨。</p>
+          <a class="card-link" href="pages/group-terminal-ui.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G13</span><h2>雷達與觀測</h2></div>
+          <p>用 `src/` feature gate 與條件載入信號追蹤可能尚未全面開放的能力。</p>
+          <a class="card-link" href="pages/group-radar.html">進入群組</a>
+        </article>
       </section>
 
       <section class="block">
@@ -302,7 +262,7 @@ graph LR
         <h2>建議學習節奏（7 天）</h2>
         <p>這是一個可直接執行的最小學習計畫，適合想在一週內建立穩定心智模型的讀者。</p>
         <div class="phase-grid">
-          <div class="phase-item"><strong>Day 1-2</strong><span>快速起步、啟動流程、指令系統（只看 L1/L2）</span></div>
+          <div class="phase-item"><strong>Day 1-2</strong><span>快速起步、啟動流程、指令系統（先看總覽與主流程）</span></div>
           <div class="phase-item"><strong>Day 3-4</strong><span>工具系統、回合引擎、模式與權限（補齊失敗路徑）</span></div>
           <div class="phase-item"><strong>Day 5</strong><span>記憶系統、提示系統（聚焦穩定性與一致性）</span></div>
           <div class="phase-item"><strong>Day 6-7</strong><span>Hooks 與自動化、代理與擴充、終端 UI（看擴充邊界）</span></div>
@@ -310,7 +270,7 @@ graph LR
       </section>
     </main>
 
-    <p class="footer">閱讀建議：先從「快速起步」建立全貌，再按四階段推進。每章先讀 L1，再視需求進入 L2 與 L3。</p>
+    <p class="footer">閱讀建議：先從「快速起步」建立全貌，再按四階段推進。每章先看總覽，再視需求深入細節與取捨。</p>
   </div>
   <script src="assets/site.js"></script>
 </body>

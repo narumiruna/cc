@@ -46,20 +46,11 @@
     <main>
       <section class="block" id="tldr">
         <h2>90 秒總覽</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <p>指令系統是 Claude Code 的「語義入口層」。使用者輸入 <code>/help</code>、<code>/status</code> 等斜線命令時，系統會在已註冊的命令清單中比對，找到對應的 Command 物件，然後委派給工具層或提示流程執行。命令本身不做重邏輯——它只負責「理解使用者意圖」並路由到正確的執行層。feature gate 機制讓某些命令只在特定條件下可見。</p>
       </section>
 
       <section class="block" id="runtime-path">
         <h2>執行路徑（主骨架）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <pre class="snippet"><code class="language-ts">const COMMANDS = memoize((): Command[] => [
   addDir,
   help,
@@ -94,10 +85,6 @@
 
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="decision-card">
           <h3>決策 1：命令清單採 memoize 快取</h3>
           <p><strong>原因：</strong>命令清單在應用程式生命週期內不會改變，每次重建浪費運算資源。透過 memoize 確保只建立一次，後續呼叫直接回傳快取結果，降低重複成本。</p>
@@ -117,10 +104,6 @@
 
       <section class="block" id="tradeoffs">
         <h2>替代方案與取捨</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <table class="tradeoff-table">
           <caption>替代方案比較表</caption>
           <thead>
@@ -156,10 +139,6 @@
 
       <section class="block" id="failure-modes">
         <h2>失敗路徑與防護</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l2">L2 進階</span>
-          <span class="depth-tag depth-l3">L3 架構</span>
-        </div>
         <div class="failure-case">
           <h3>Failure 1：使用者輸入未知命令</h3>
           <p><strong>症狀：</strong>使用者輸入 <code>/foobar</code> 等不存在的斜線命令，命令清單比對不到任何 Command 物件，系統沒有回應或拋出未處理的例外。</p>
@@ -179,10 +158,6 @@
 
       <section class="block" id="implementation">
         <h2>實作驗證（你改完要怎麼確認）</h2>
-        <div class="depth-row">
-          <span class="depth-tag depth-l1">L1 入門</span>
-          <span class="depth-tag depth-l2">L2 進階</span>
-        </div>
         <ul>
           <li>確認 <code>/help</code> 正確列出所有目前可用的命令，且清單與 COMMANDS 陣列一致。</li>
           <li>確認關閉特定 feature flag（如 <code>VOICE_MODE</code>）時，對應的命令從清單中消失，使用者無法觸發。</li>
