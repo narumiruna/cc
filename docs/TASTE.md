@@ -1,3 +1,4 @@
 - Prefer progressive depth explanations (from fundamentals to advanced details) for architecture tutorials on the project website.
 - Record website structure changes in documentation as part of implementation updates.
 - Base website/article claims on direct `src/` code evidence rather than external summaries.
+- Use Claude Code brand orange as the default website accent palette.
