@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>內建 Commands 清單 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="15">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>內建 Commands：完整清單與定位</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>本頁依 <code>src/commands.ts</code> 的 COMMANDS 與 INTERNAL_ONLY_COMMANDS 彙整。</p>
+      <nav class="top-nav" aria-label="主要導覽"></nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">註冊路徑</a>
+        <a href="#catalog">內建指令清單</a>
+        <a href="#gated">條件啟用</a>
+        <a href="#internal">內部限定</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <p>Command 的單一來源是 <code>src/commands.ts</code>。其中 <code>COMMANDS()</code> 是主要註冊表，另外 <code>INTERNAL_ONLY_COMMANDS</code> 會在特定條件下追加。這代表「看清註冊表」就是確認內建 command 的最快方式。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>註冊路徑（來源證據）</h2>
+        <pre class="snippet"><code class="language-ts">// src/commands.ts
+const COMMANDS = memoize((): Command[] => [
+  addDir, advisor, agents, ... , usageReport, vim, ...
+])
+
+export const INTERNAL_ONLY_COMMANDS = [
+  backfillSessions, breakCache, commit, ...
+]
+
+export async function getCommands(cwd: string): Promise&lt;Command[]&gt; {
+  const allCommands = await loadAllCommands(cwd)
+  return allCommands.filter(_ => meetsAvailabilityRequirement(_) && isCommandEnabled(_))
+}</code></pre>
+        <p class="explain-note">重點：是否可見，不只看有沒有註冊，還要同時滿足 availability 與 isEnabled。</p>
+      </section>
+
+      <section class="block" id="catalog">
+        <h2>主要內建 Commands（COMMANDS 註冊）</h2>
+        <p>以下為主要 command 名稱（以 command module 的 <code>name</code> 欄位整理）。</p>
+        <pre class="flow"><code>/add-dir, /advisor, /agents, /branch, /btw, /chrome, /clear, /color, /compact,
+/config, /context, /copy, /cost, /desktop, /diff, /doctor, /effort, /exit,
+/export, /extra-usage, /fast, /feedback, /files, /heapdump, /help, /hooks,
+/ide, /init, /install-github-app, /install-slack-app, /keybindings, /mcp,
+/memory, /mobile, /model, /output-style, /passes, /permissions, /plan,
+/plugin, /pr-comments, /privacy-settings, /rate-limit-options, /release-notes,
+/reload-plugins, /remote-env, /rename, /resume, /review, /rewind,
+/sandbox, /security-review, /session, /skills, /stats, /status, /statusline,
+/stickers, /tag, /tasks, /terminal-setup, /theme, /think-back,
+/thinkback-play, /ultrareview, /upgrade, /usage, /insights, /vim</code></pre>
+      </section>
+
+      <section class="block" id="gated">
+        <h2>條件啟用 Commands（feature gate / 環境條件）</h2>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>條件線索（src）</th>
+              <th>用途簡述</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>/assistant, /brief, /proactive</td><td><code>feature('KAIROS')</code> 系列</td><td>助理模式與主動流程</td></tr>
+            <tr><td>/remote-control</td><td><code>feature('BRIDGE_MODE')</code></td><td>橋接遠端控制入口</td></tr>
+            <tr><td>/voice</td><td><code>feature('VOICE_MODE')</code></td><td>語音互動命令</td></tr>
+            <tr><td>/web-setup</td><td><code>feature('CCR_REMOTE_SETUP')</code></td><td>遠端 Web 設定流程</td></tr>
+            <tr><td>/fork</td><td><code>feature('FORK_SUBAGENT')</code></td><td>子代理分叉流程</td></tr>
+            <tr><td>/buddy</td><td><code>feature('BUDDY')</code></td><td>互動夥伴命令</td></tr>
+            <tr><td>/workflows</td><td><code>feature('WORKFLOW_SCRIPTS')</code></td><td>工作流腳本命令</td></tr>
+            <tr><td>/peers</td><td><code>feature('UDS_INBOX')</code></td><td>同儕通道相關命令</td></tr>
+            <tr><td>/torch</td><td><code>feature('TORCH')</code></td><td>實驗性命令入口</td></tr>
+            <tr><td>/login, /logout</td><td><code>!isUsing3PServices()</code></td><td>帳號登入登出（非 3P 模式）</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="internal">
+        <h2>內部限定 Commands（INTERNAL_ONLY_COMMANDS）</h2>
+        <p>這些命令存在於原始碼，但會受 build / USER_TYPE 條件影響，不一定對外可用：</p>
+        <pre class="flow"><code>/autofix-pr, /backfill-sessions, /break-cache, /bughunter, /commit,
+/commit-push-pr, /ctx-viz, /good-claude, /issue, /init-verifiers,
+/mock-limits, /bridge-kick, /version, /ultraplan, /subscribe-pr,
+/reset-limits, /onboarding, /share, /summary, /teleport, /ant-trace,
+/perf-issue, /env, /oauth-refresh, /debug-tool-call, /agents-platform</code></pre>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="unreleased-features.html">← 上一頁：未開放功能</a>
+      <a href="tools-catalog.html">下一頁：內建 Tools →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

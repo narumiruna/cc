@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>內建 Tools 清單 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="16">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>內建 Tools：完整清單與分層介紹</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>本頁依 <code>src/tools.ts</code> 的 <code>getAllBaseTools()</code> 與 gate 條件彙整。</p>
+      <nav class="top-nav" aria-label="主要導覽"></nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">組裝路徑</a>
+        <a href="#core">核心常駐工具</a>
+        <a href="#optional">條件啟用工具</a>
+        <a href="#modes">模式影響</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <p>Tool 清單的真實來源是 <code>src/tools.ts</code>。工具先經過 <code>getAllBaseTools()</code> 組裝，再由 <code>getTools()</code> 依 deny rules、REPL mode、simple mode、feature gate 做過濾，最後才是模型實際可用的工具池。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>組裝路徑（來源證據）</h2>
+        <pre class="snippet"><code class="language-ts">// src/tools.ts
+export function getAllBaseTools(): Tools { ... }
+
+export const getTools = (permissionContext) => {
+  if (CLAUDE_CODE_SIMPLE) return [Bash, Read, Edit]...
+  let allowedTools = filterToolsByDenyRules(...)
+  if (isReplModeEnabled()) hide(REPL_ONLY_TOOLS)
+  return allowedTools.filter(t => t.isEnabled())
+}
+
+export function assembleToolPool(permissionContext, mcpTools) {
+  return uniqBy([...builtInTools, ...allowedMcpTools], 'name')
+}</code></pre>
+      </section>
+
+      <section class="block" id="core">
+        <h2>核心常駐工具（主要內建）</h2>
+        <p>以下是平常最核心、最常見的內建工具（名稱依工具常數與 prompt 名稱整理）：</p>
+        <pre class="flow"><code>Agent, TaskOutput, Bash, Read, Edit, Write, NotebookEdit,
+WebFetch, WebSearch, Grep, Glob, TodoWrite, TaskStop,
+AskUserQuestion, Skill, EnterPlanMode, ExitPlanMode,
+ListMcpResourcesTool, ReadMcpResourceTool</code></pre>
+        <p class="explain-note">其中 Grep/Glob 在 embedded search 存在時可能被替換路徑；實際可見性仍以執行時過濾為準。</p>
+      </section>
+
+      <section class="block" id="optional">
+        <h2>條件啟用工具（feature / env / mode）</h2>
+        <table class="tradeoff-table">
+          <thead>
+            <tr>
+              <th>工具</th>
+              <th>條件線索（src）</th>
+              <th>用途簡述</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>PowerShell</td><td><code>isPowerShellToolEnabled()</code></td><td>Windows 指令執行</td></tr>
+            <tr><td>REPL</td><td><code>USER_TYPE === 'ant'</code></td><td>沙箱式互動執行</td></tr>
+            <tr><td>ToolSearch</td><td><code>isToolSearchEnabledOptimistic()</code></td><td>工具搜尋索引</td></tr>
+            <tr><td>TaskCreate / TaskGet / TaskUpdate / TaskList</td><td><code>isTodoV2Enabled()</code></td><td>任務系統 v2</td></tr>
+            <tr><td>EnterWorktree / ExitWorktree</td><td><code>isWorktreeModeEnabled()</code></td><td>工作樹模式切換</td></tr>
+            <tr><td>Sleep</td><td><code>feature('PROACTIVE'|'KAIROS')</code></td><td>等待與排程節點</td></tr>
+            <tr><td>CronCreate / CronDelete / CronList</td><td><code>feature('AGENT_TRIGGERS')</code></td><td>Cron 觸發管理</td></tr>
+            <tr><td>RemoteTrigger</td><td><code>feature('AGENT_TRIGGERS_REMOTE')</code></td><td>遠端觸發工作</td></tr>
+            <tr><td>Monitor</td><td><code>feature('MONITOR_TOOL')</code></td><td>監控任務型流程</td></tr>
+            <tr><td>Workflow</td><td><code>feature('WORKFLOW_SCRIPTS')</code></td><td>工作流工具執行</td></tr>
+            <tr><td>WebBrowser</td><td><code>feature('WEB_BROWSER_TOOL')</code></td><td>瀏覽器操作工具</td></tr>
+            <tr><td>Snip</td><td><code>feature('HISTORY_SNIP')</code></td><td>歷史片段操作</td></tr>
+            <tr><td>SendUserFile / PushNotification / SubscribePR</td><td>KAIROS 系列 gate</td><td>助理延伸工具</td></tr>
+            <tr><td>TeamCreate / TeamDelete / SendMessage / ListPeers</td><td>協作模式條件</td><td>多代理/同儕協作</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="modes">
+        <h2>模式影響：為什麼你看到的工具會不同</h2>
+        <div class="decision-card">
+          <h3>Simple mode（<code>--bare</code>）</h3>
+          <p>預設只留 <code>Bash</code>、<code>Read</code>、<code>Edit</code>，大幅縮小工具面。</p>
+        </div>
+        <div class="decision-card">
+          <h3>REPL mode</h3>
+          <p>會隱藏 REPL_ONLY_TOOLS 的原始 primitive，改由 REPL VM 包裝後提供。</p>
+        </div>
+        <div class="decision-card">
+          <h3>Permission deny rules</h3>
+          <p>即使工具存在於 built-in 清單，也可能在 <code>filterToolsByDenyRules</code> 被提前剔除。</p>
+        </div>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="commands-catalog.html">← 上一頁：內建 Commands</a>
+      <a href="../index.html">回首頁 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>

@@ -14,6 +14,8 @@ This document records the current structure of the tutorial website so future up
 - `pages/*.html`: chapter pages (one topic per page)
 - Current chapter set includes `pages/architecture-overview.html` as the architecture overview tab.
 - Current chapter set includes `pages/unreleased-features.html` as the "source-code radar" page for potentially unreleased capabilities.
+- Current chapter set includes `pages/commands-catalog.html` for the built-in command catalog.
+- Current chapter set includes `pages/tools-catalog.html` for the built-in tool catalog.
 - `assets/site.css`: CSS entrypoint that imports layered style files
 - `assets/styles/tokens.css`: design tokens, theme variables, base element defaults
 - `assets/styles/layout.css`: shell, header, grid, main flow, responsive layout
