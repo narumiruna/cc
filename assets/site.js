@@ -94,6 +94,64 @@
     return current === 'home' ? '' : '../';
   }
 
+  function applyBookLayout() {
+    var shell = document.querySelector('.shell');
+    var header;
+    var topNav;
+    var layout;
+    var sidebar;
+    var sidebarHeader;
+    var sidebarHome;
+    var sidebarSubtitle;
+    var content;
+    var children;
+    if (!shell || shell.querySelector('.book-layout')) {
+      return;
+    }
+
+    header = shell.querySelector('.header');
+    if (!header) {
+      return;
+    }
+
+    topNav = header.querySelector('.top-nav');
+    if (!topNav) {
+      return;
+    }
+
+    layout = document.createElement('div');
+    layout.className = 'book-layout';
+
+    sidebar = document.createElement('aside');
+    sidebar.className = 'book-sidebar';
+
+    sidebarHeader = document.createElement('div');
+    sidebarHeader.className = 'book-sidebar-header';
+    sidebarHome = document.createElement('a');
+    sidebarHome.className = 'book-home-link';
+    sidebarHome.href = document.body.getAttribute('data-page') === 'home' ? 'index.html' : '../index.html';
+    sidebarHome.textContent = 'Claude Code 架構手冊';
+    sidebarSubtitle = document.createElement('p');
+    sidebarSubtitle.className = 'book-sidebar-subtitle';
+    sidebarSubtitle.textContent = '模組導覽與章節索引';
+    sidebarHeader.appendChild(sidebarHome);
+    sidebarHeader.appendChild(sidebarSubtitle);
+
+    sidebar.appendChild(sidebarHeader);
+    sidebar.appendChild(topNav);
+
+    content = document.createElement('div');
+    content.className = 'book-content';
+    children = Array.prototype.slice.call(shell.children);
+    children.forEach(function (child) {
+      content.appendChild(child);
+    });
+
+    layout.appendChild(sidebar);
+    layout.appendChild(content);
+    shell.appendChild(layout);
+  }
+
   function renderTopNav() {
     var nav = document.querySelector('.top-nav');
     if (!nav) {
@@ -103,10 +161,63 @@
     var current = getCurrentPage();
     var active = getNavActivePage(current);
     var prefix = getPrefix(current);
+    var inSidebar = !!nav.closest('.book-sidebar');
+
+    if (!inSidebar) {
+      nav.innerHTML = NAV_ITEMS.map(function (item) {
+        var cls = item.page === active ? ' class="active"' : '';
+        return '<a data-page="' + item.page + '" href="' + prefix + item.href + '"' + cls + '>' + item.label + '</a>';
+      }).join('');
+      return;
+    }
+
     nav.innerHTML = NAV_ITEMS.map(function (item) {
-      var cls = item.page === active ? ' class="active"' : '';
-      return '<a data-page="' + item.page + '" href="' + prefix + item.href + '"' + cls + '>' + item.label + '</a>';
+      var groupChildren;
+      var chapterLinks;
+      var detailsOpen;
+      if (item.page === 'home') {
+        return '<a class="book-nav-home' + (active === 'home' ? ' active"' : '"') + ' data-page="home" href="' + prefix + item.href + '">首頁</a>';
+      }
+
+      groupChildren = GROUP_TO_CHILDREN[item.page] || [];
+      chapterLinks = groupChildren.map(function (childPage) {
+        var meta = PAGE_META[childPage];
+        var href = current === 'home' ? meta.href : meta.href.replace('pages/', '');
+        var cls = childPage === current ? ' class="book-nav-chapter active"' : ' class="book-nav-chapter"';
+        return '<a data-page="' + childPage + '" href="' + href + '"' + cls + '>' + meta.label + '</a>';
+      }).join('');
+
+      detailsOpen = active === item.page ? ' open' : '';
+      return [
+        '<details class="book-nav-group" data-group="' + item.page + '"' + detailsOpen + '>',
+        '<summary class="book-nav-summary">' + item.label + '</summary>',
+        '<div class="book-nav-children">',
+        '<a data-page="' + item.page + '" href="' + prefix + item.href + '" class="book-nav-group-link' + (current === item.page ? ' active' : '') + '">群組首頁</a>',
+        chapterLinks,
+        '</div>',
+        '</details>'
+      ].join('');
     }).join('');
+  }
+
+  function bindSidebarGroupAccordion() {
+    var groups = document.querySelectorAll('.book-nav-group');
+    if (!groups.length) {
+      return;
+    }
+
+    Array.prototype.slice.call(groups).forEach(function (group) {
+      group.addEventListener('toggle', function () {
+        if (!group.open) {
+          return;
+        }
+        Array.prototype.slice.call(groups).forEach(function (other) {
+          if (other !== group) {
+            other.open = false;
+          }
+        });
+      });
+    });
   }
 
   function renderBreadcrumb() {
@@ -196,9 +307,44 @@
     pager.innerHTML = left + right;
   }
 
+  function renderSidebarToc() {
+    var sidebar = document.querySelector('.book-sidebar');
+    var toc = document.querySelector('.toc-local');
+    var links;
+    var container;
+    var title;
+    if (!sidebar || !toc) {
+      return;
+    }
+
+    links = toc.querySelectorAll('a');
+    if (!links.length) {
+      return;
+    }
+
+    container = sidebar.querySelector('.book-toc');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'book-toc';
+      title = document.createElement('p');
+      title.className = 'book-toc-title';
+      title.textContent = '本頁章節';
+      container.appendChild(title);
+      sidebar.appendChild(container);
+    }
+
+    container.innerHTML = '<p class="book-toc-title">本頁章節</p>';
+    Array.prototype.slice.call(links).forEach(function (link) {
+      container.innerHTML += '<a href="' + link.getAttribute('href') + '">' + link.textContent + '</a>';
+    });
+  }
+
+  applyBookLayout();
   renderTopNav();
+  bindSidebarGroupAccordion();
   renderBreadcrumb();
   renderPager();
+  renderSidebarToc();
 
   /* ── Theme toggle ── */
   var saved = localStorage.getItem('theme');
