@@ -58,7 +58,7 @@
         <p>建議按階段前進，先看總覽，再依需求深入執行細節與取捨分析。</p>
         <div class="phase-grid">
           <div class="phase-item"><strong>階段一：基礎概念</strong><span>快速起步 → 啟動流程 → 指令系統</span></div>
-          <div class="phase-item"><strong>階段二：核心機制</strong><span>工具系統 → 回合引擎 → 服務與 MCP</span></div>
+          <div class="phase-item"><strong>階段二：核心機制</strong><span>Skills 機制 → 工具系統 → 回合引擎 → 服務與 MCP</span></div>
           <div class="phase-item"><strong>階段三：進階架構</strong><span>狀態與任務 → 模式與權限 → 記憶系統 → 代理與擴充</span></div>
           <div class="phase-item"><strong>階段四：深入主題</strong><span>提示系統 → Hooks 與自動化 → 終端 UI</span></div>
         </div>
@@ -69,12 +69,13 @@ graph LR
     B --> C[指令系統]
   end
   subgraph phase2["核心機制"]
-    C --> D[工具系統]
-    D --> E[回合引擎]
-    E --> F[服務與 MCP]
+    C --> D[Skills 機制]
+    D --> E[工具系統]
+    E --> F[回合引擎]
+    F --> N[服務與 MCP]
   end
   subgraph phase3["進階架構"]
-    F --> G[狀態與任務]
+    N --> G[狀態與任務]
     G --> H[模式與權限]
     H --> I[記憶系統]
     I --> J[代理與擴充]
@@ -153,6 +154,11 @@ graph LR
           <div class="card-header"><span class="card-num">G2</span><h2>指令系統</h2></div>
           <p>斜線命令如何註冊、過濾、路由，並與命令清單實際可見性銜接。</p>
           <a class="card-link" href="pages/group-command-system.html">進入群組</a>
+        </article>
+        <article class="card">
+          <div class="card-header"><span class="card-num">G14</span><h2>Skills 機制</h2></div>
+          <p>從 skills 載入、發現、觸發到 inline/fork 執行與權限邊界的完整路徑。</p>
+          <a class="card-link" href="pages/group-skills-system.html">進入群組</a>
         </article>
         <article class="card">
           <div class="card-header"><span class="card-num">G3</span><h2>工具系統</h2></div>

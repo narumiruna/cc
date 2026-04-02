@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skills 機制 | Claude Code 初學者教學</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/site.css" />
+</head>
+<body data-page="18">
+  <div class="shell">
+    <header class="header">
+      <div class="header-title-row">
+        <h1>Skills 機制：載入、觸發與執行</h1>
+        <button class="theme-toggle" type="button" aria-label="切換深色模式">🌙</button>
+      </div>
+      <p>這一章只做一件事：把 skills 在 `src` 裡的實際執行機制，整理成可維護、可驗證的工程地圖。</p>
+      <nav class="top-nav" aria-label="主要導覽"></nav>
+      <nav class="toc-local" aria-label="章內導覽">
+        <a href="#tldr">90 秒總覽</a>
+        <a href="#runtime-path">執行路徑</a>
+        <a href="#trigger-timing">觸發判斷與時機</a>
+        <a href="#decisions">關鍵決策</a>
+        <a href="#tradeoffs">替代方案與取捨</a>
+        <a href="#failure-modes">失敗路徑</a>
+        <a href="#implementation">實作驗證</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="block" id="tldr">
+        <h2>90 秒總覽</h2>
+        <p>Claude Code 的 skills 不是單一來源。`src/commands.ts` 會把 bundled skills、`.claude/skills`、plugin skills、legacy commands-as-skills 與其他 command 來源整合為同一個 registry，再由 `getSkillToolCommands()` 和 `getSlashCommandToolSkills()` 分別提供給模型側與使用者側流程。實際觸發有兩條主路：使用者 `/skill` 走 `processSlashCommand.tsx`，模型主動使用 skill 走 `SkillTool.ts`。兩條路最後都會把 skill 內容注入回合上下文，並套用 allowed tools、model、effort、permission 與 compaction 保留機制。</p>
+      </section>
+
+      <section class="block" id="runtime-path">
+        <h2>執行路徑（主骨架）</h2>
+        <pre class="snippet"><code class="language-ts">// src/commands.ts
+export async function getCommands(cwd: string): Promise&lt;Command[]&gt; {
+  const allCommands = await loadAllCommands(cwd)
+  const dynamicSkills = getDynamicSkills()
+  // availability + isEnabled 過濾
+  return ...
+}
+
+export const getSkillToolCommands = memoize(async (cwd: string) =&gt; ...)
+export const getSlashCommandToolSkills = memoize(async (cwd: string) =&gt; ...)</code></pre>
+        <p class="explain-note">重點：skills 先進同一份 command registry，再由不同入口做二次過濾，而不是維護兩套獨立清單。</p>
+        <pre class="pseudo"><code class="language-text">啟動/刷新：載入 skills 來源（bundled + skill dirs + plugin + legacy）
+合併進 commands registry（含 dynamic/conditional skills）
+每回合附件：注入 skill listing 與必要 discovery 信號
+
+使用者路徑：
+  /xxx -> processSlashCommand -> getMessagesForPromptSlashCommand
+  -> 注入 SKILL 內容 + command permissions attachment -> 查詢主回合
+
+模型路徑：
+  SkillTool(skill,args) -> validate + permission
+  -> inline 或 fork 執行
+  -> 注入 skill 內容/結果並更新 context modifier</code></pre>
+        <pre class="mermaid">flowchart TD
+  A[載入 skills 來源] --> B[getCommands 合併 registry]
+  B --> C{觸發來源}
+  C -->|使用者 /skill| D[processSlashCommand.tsx]
+  C -->|模型 SkillTool| E[SkillTool.ts]
+  D --> F[getMessagesForPromptSlashCommand]
+  E --> G{inline 或 fork}
+  F --> H[注入 skill 內容與權限]
+  G --> H
+  H --> I[query loop 執行]
+  I --> J[compaction 保留與後續恢復]</pre>
+        <div class="impl-checklist">
+          <h3>路徑判讀重點</h3>
+          <ul>
+            <li>Skill listing 與 skill discovery 是兩層機制；listing 不是完整 discovery 的替代品（`src/utils/attachments.ts`、`src/query.ts`）。</li>
+            <li>SkillTool 只接受 prompt-based skill，且會先做 `validateInput` 與 `checkPermissions`（`src/tools/SkillTool/SkillTool.ts`）。</li>
+            <li>`context: fork` 的 skill 會交給子 agent 跑，不與主回合同 token 預算（`executeForkedSkill`）。</li>
+            <li>skill 內容會進 `addInvokedSkill(...)`，是 compaction 後可恢復的依據（`src/utils/processUserInput/processSlashCommand.tsx`）。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="trigger-timing">
+        <h2>觸發判斷與時機（回合引擎視角）</h2>
+        <p>在回合引擎中，skills 的「使用時機」不是硬編碼 if/else，而是由三層訊號組合出來：可見性（listing）、相關性提示（discovery）、以及模型最終是否呼叫 `SkillTool`。這三層對應到不同模組，不能混成同一件事。</p>
+        <pre class="pseudo"><code class="language-text">Turn 開始
+  -> getAttachmentMessages: 注入 skill_listing（可用技能清單）
+  -> query.ts: startSkillDiscoveryPrefetch（背景預抓技能相關線索）
+  -> 模型先執行一般推理與工具呼叫
+  -> query.ts: collectSkillDiscoveryPrefetch（把 discovery 線索注入）
+  -> 模型判斷是否呼叫 SkillTool
+       若呼叫: SkillTool.validate -> checkPermissions -> call(inline/fork)
+       若不呼叫: 繼續一般工具路徑</code></pre>
+        <pre class="mermaid">sequenceDiagram
+  participant U as User
+  participant Q as query.ts
+  participant A as attachments.ts
+  participant M as Model
+  participant S as SkillTool
+  U->>Q: submit message
+  Q->>A: getAttachmentMessages
+  A-->>Q: skill_listing
+  Q->>Q: startSkillDiscoveryPrefetch
+  Q->>M: send context + tools
+  M-->>Q: tool calls / reasoning
+  Q->>Q: collectSkillDiscoveryPrefetch
+  Q->>M: inject skill_discovery (if any)
+  M->>S: call SkillTool? (optional)
+  S-->>M: inline/fork result
+  M-->>Q: final response</pre>
+        <table class="tradeoff-table">
+          <caption>三層訊號的責任邊界</caption>
+          <thead>
+            <tr>
+              <th>層級</th>
+              <th>作用</th>
+              <th>來源（src）</th>
+              <th>是否代表「已執行 skill」</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>skill listing</td>
+              <td>告訴模型目前有哪些 skills 可用</td>
+              <td><code>src/utils/attachments.ts#getSkillListingAttachments</code></td>
+              <td>否，只是可見性</td>
+            </tr>
+            <tr>
+              <td>skill discovery</td>
+              <td>提供與當前任務可能相關的技能線索</td>
+              <td><code>src/query.ts</code> + <code>src/utils/attachments.ts</code></td>
+              <td>否，只是提示</td>
+            </tr>
+            <tr>
+              <td>SkillTool call</td>
+              <td>真正載入並執行 skill</td>
+              <td><code>src/tools/SkillTool/SkillTool.ts</code></td>
+              <td>是，這才是執行點</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="impl-checklist">
+          <h3>實務判讀規則</h3>
+          <ul>
+            <li>看到 `skill_listing` 不代表模型一定會用 skill；它只表示「可選項存在」。</li>
+            <li>看到 `skill_discovery` 也不代表一定會執行 skill；模型可能判斷一般工具更直接。</li>
+            <li>只有出現 `SkillTool` 呼叫，才算進入 skills 執行流程（含 `validateInput/checkPermissions/call`）。</li>
+            <li>使用者輸入 `/skill-name` 屬於 slash command 入口，不是模型自主觸發。</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="block" id="decisions">
+        <h2>關鍵決策（為什麼這樣設計）</h2>
+        <div class="decision-card">
+          <h3>決策 1：skills 併入統一 command registry</h3>
+          <p><strong>原因：</strong>`loadAllCommands()` 先整合，再由不同函式過濾，能保證匹配規則與可見性判斷一致，減少雙軌清單漂移。</p>
+          <p><strong>代價：</strong>過濾規則較複雜，維護者需同時理解 `getCommands`、`getSkillToolCommands`、`getSlashCommandToolSkills` 的差異。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 2：skills 支援 inline / fork 兩種執行上下文</h3>
+          <p><strong>原因：</strong>簡單技能可 inline 降低開銷；重型或需隔離的技能用 fork，避免汙染主回合狀態與 token 預算。</p>
+          <p><strong>代價：</strong>需維護兩條執行路徑的一致性，包含 telemetry、權限與結果回傳格式。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 3：動態與條件技能採漸進啟用</h3>
+          <p><strong>原因：</strong>只在檔案操作命中路徑時發現或啟用（`discoverSkillDirsForPaths`、`paths` frontmatter），降低啟動負擔與噪音。</p>
+          <p><strong>代價：</strong>技能可見性會受上下文影響，除錯時要先確認是否已被 discover/activate。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 4：回合中以訊號驅動，而非強制規則驅動</h3>
+          <p><strong>原因：</strong>讓模型可根據當前任務選擇 skill 或一般工具，避免「每回合都硬套 skill」造成過度流程化。</p>
+          <p><strong>代價：</strong>可預測性較低；要透過 listing/discovery/telemetry 來提升可觀測性，而不是靠單一硬規則。</p>
+        </div>
+      </section>
+
+      <section class="block" id="tradeoffs">
+        <h2>替代方案與取捨</h2>
+        <table class="tradeoff-table">
+          <caption>skills 機制替代方案比較</caption>
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>優點</th>
+              <th>缺點</th>
+              <th>為何目前未採用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>skills 與 commands 完全分離 registry</td>
+              <td>概念隔離明確，文件看起來更直覺</td>
+              <td>匹配與權限規則容易分岔，重複邏輯增加</td>
+              <td>目前設計偏重一致性與復用，統一 registry 更穩</td>
+            </tr>
+            <tr>
+              <td>所有 skills 一律 inline</td>
+              <td>流程單純、實作面少</td>
+              <td>重型技能會拖慢主回合，隔離性不足</td>
+              <td>已有 `context: fork` 需求，不能只用單一路徑</td>
+            </tr>
+            <tr>
+              <td>每回合都完整列出全部 skills</td>
+              <td>可見性最高，不怕漏</td>
+              <td>token 成本高，且會放大無關技能噪音</td>
+              <td>現行改用 listing 去重 + discovery prefetch 平衡成本</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="block" id="failure-modes">
+        <h2>失敗路徑與防護</h2>
+        <div class="failure-case">
+          <h3>Failure 1：模型呼叫不存在或不可調用 skill</h3>
+          <p><strong>症狀：</strong>SkillTool 收到未知 skill、非 prompt skill、或 `disableModelInvocation` skill。</p>
+          <p><strong>防護：</strong>`validateInput` 直接拒絕並回傳明確 error code 與訊息（`src/tools/SkillTool/SkillTool.ts`）。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 2：skill 內容觸發不必要 discovery，導致高延遲</h3>
+          <p><strong>症狀：</strong>大型 SKILL.md 被當成一般輸入再做 discovery，回合變慢。</p>
+          <p><strong>防護：</strong>在 `getMessagesForPromptSlashCommand` 走 `getAttachmentMessages` 時設定 `skipSkillDiscovery: true`（`src/utils/processUserInput/processSlashCommand.tsx`）。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 3：動態技能已載入但清單快取未刷新</h3>
+          <p><strong>症狀：</strong>新 discover 的技能未即時出現在可用列表。</p>
+          <p><strong>防護：</strong>動態載入完成觸發 signal 清快取（`onDynamicSkillsLoaded` + command memoization 清理鏈）。</p>
+        </div>
+        <div class="failure-case">
+          <h3>Failure 4：把 listing/discovery 誤當成「skill 已執行」</h3>
+          <p><strong>症狀：</strong>觀察到附件中有 skills 訊號，就誤判功能一定走 skill 路徑，導致診斷方向錯誤。</p>
+          <p><strong>防護：</strong>以 `SkillTool` 實際呼叫紀錄作為執行判據；附件訊號只當作候選與提示，不當作執行證據。</p>
+        </div>
+      </section>
+
+      <section class="block" id="implementation">
+        <h2>實作驗證（你改完要怎麼確認）</h2>
+        <ul>
+          <li>確認本頁敘述可對應到以下程式碼：`src/commands.ts`、`src/skills/loadSkillsDir.ts`、`src/utils/plugins/loadPluginCommands.ts`、`src/utils/processUserInput/processSlashCommand.tsx`、`src/tools/SkillTool/SkillTool.ts`、`src/utils/attachments.ts`、`src/query.ts`。</li>
+          <li>確認使用者路徑：`/skills` 相關敘述與 slash command 流程一致，未把 SkillTool 與 slash 流程混為一談。</li>
+          <li>確認模型路徑：有清楚描述 validate/permission/context(inline,fork) 的先後順序。</li>
+          <li>確認時機路徑：有明確區分 listing、discovery、SkillTool call 三層，且每層都有對應 src 位置。</li>
+          <li>確認導覽可從首頁、群組頁與側欄進入本頁，且 active page 高亮正確。</li>
+          <li>確認本頁語言、術語與既有網站一致（台灣正體中文，避免外部推測性敘述）。</li>
+        </ul>
+      </section>
+    </main>
+
+    <div class="pager">
+      <a href="group-skills-system.html">← 返回群組：Skills 機制</a>
+      <a href="tool-system.html">下一頁：工具系統 →</a>
+    </div>
+  </div>
+  <script src="../assets/site.js"></script>
+</body>
+</html>
