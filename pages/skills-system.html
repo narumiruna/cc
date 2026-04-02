@@ -22,6 +22,7 @@
         <a href="#tldr">90 秒總覽</a>
         <a href="#runtime-path">執行路徑</a>
         <a href="#trigger-timing">觸發判斷與時機</a>
+        <a href="#read-vs-script">讀文件 vs 執行 script</a>
         <a href="#decisions">關鍵決策</a>
         <a href="#tradeoffs">替代方案與取捨</a>
         <a href="#failure-modes">失敗路徑</a>
@@ -152,6 +153,90 @@ export const getSlashCommandToolSkills = memoize(async (cwd: string) =&gt; ...)<
         </div>
       </section>
 
+      <section class="block" id="read-vs-script">
+        <h2>讀文件 vs 執行 Script：觸發階段對照</h2>
+        <p>這裡要先拆開三件事：系統讀 `SKILL.md`、skill 內容被展開注入、模型後續呼叫工具去讀檔或執行命令。它們是不同階段，不要混在一起判斷。</p>
+        <table class="tradeoff-table">
+          <caption>技能相關讀取/執行事件對照</caption>
+          <thead>
+            <tr>
+              <th>事件</th>
+              <th>觸發階段</th>
+              <th>觸發條件</th>
+              <th>是否會執行命令</th>
+              <th>來源（src）</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>讀取 `SKILL.md` 並解析 frontmatter</td>
+              <td>技能載入/發現</td>
+              <td>掃描 skills 目錄、plugin skills 或動態技能發現時</td>
+              <td>不會，只是讀檔建索引</td>
+              <td><code>src/skills/loadSkillsDir.ts</code>、<code>src/utils/plugins/loadPluginCommands.ts</code></td>
+            </tr>
+            <tr>
+              <td>展開 skill 內容注入回合</td>
+              <td>技能被呼叫（slash 或 SkillTool）</td>
+              <td>模型/使用者實際命中某個 skill</td>
+              <td>不一定，先是文本注入</td>
+              <td><code>src/utils/processUserInput/processSlashCommand.tsx</code>、<code>src/tools/SkillTool/SkillTool.ts</code></td>
+            </tr>
+            <tr>
+              <td>執行 skill 內 shell 注入（`!`）</td>
+              <td>skill 展開過程</td>
+              <td>該 skill 內容含 shell 注入語法，且非 MCP skill</td>
+              <td>會，透過 shell 執行</td>
+              <td><code>src/skills/loadSkillsDir.ts#executeShellCommandsInPrompt</code></td>
+            </tr>
+            <tr>
+              <td>讀專案文件（Read/Grep）</td>
+              <td>模型後續工具呼叫</td>
+              <td>skill 內容或當前任務讓模型決定去讀檔</td>
+              <td>會呼叫工具，但不等於 shell script</td>
+              <td><code>src/query.ts</code>（回合工具迴圈）</td>
+            </tr>
+            <tr>
+              <td>Remote/MCP skill 內容注入</td>
+              <td>技能被呼叫</td>
+              <td>命中 remote canonical skill 或 MCP skill 路徑</td>
+              <td>預設不走本地 shell 注入</td>
+              <td><code>src/tools/SkillTool/SkillTool.ts</code>、<code>src/skills/loadSkillsDir.ts</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>場景案例（判讀模板）</h3>
+        <div class="failure-case">
+          <h3>案例 A：只看到 skill listing</h3>
+          <p><strong>輸入情境：</strong>一般提問，系統注入了 `skill_listing`。</p>
+          <p><strong>回合順序：</strong>listing 出現，但模型沒有呼叫 SkillTool。</p>
+          <p><strong>是否執行 script：</strong>不會。</p>
+          <p><strong>原因：</strong>listing 是可見性訊號，不是執行指令。</p>
+        </div>
+        <div class="failure-case">
+          <h3>案例 B：使用者直接輸入 `/某個 skill`</h3>
+          <p><strong>輸入情境：</strong>使用者明確走 slash command 入口。</p>
+          <p><strong>回合順序：</strong>`processSlashCommand` 展開 skill 內容，注入回合。</p>
+          <p><strong>是否執行 script：</strong>只有 skill 內容包含 shell 注入語法時才會執行。</p>
+          <p><strong>原因：</strong>展開 skill 不等於一定執行 shell；要看 skill 文本是否含可執行片段。</p>
+        </div>
+        <div class="failure-case">
+          <h3>案例 C：skill 文字寫「先讀 docs 再修」</h3>
+          <p><strong>輸入情境：</strong>skill 內容要求先讀文件。</p>
+          <p><strong>回合順序：</strong>先展開 skill，再由模型呼叫 Read/Grep。</p>
+          <p><strong>是否執行 script：</strong>通常不會；這是工具讀檔，不是 shell 注入。</p>
+          <p><strong>原因：</strong>文件讀取發生在後續工具階段，不是 skill 載入/展開當下。</p>
+        </div>
+        <div class="failure-case">
+          <h3>案例 D：MCP skill 或 remote skill</h3>
+          <p><strong>輸入情境：</strong>模型命中 MCP skill 或 remote canonical skill。</p>
+          <p><strong>回合順序：</strong>內容被注入，但不走本地 shell 注入路徑。</p>
+          <p><strong>是否執行 script：</strong>預設不會由本地 shell 注入觸發。</p>
+          <p><strong>原因：</strong>MCP/remote 路徑有額外安全邊界，避免把遠端 skill 文本直接當本地 shell 執行。</p>
+        </div>
+      </section>
+
       <section class="block" id="decisions">
         <h2>關鍵決策（為什麼這樣設計）</h2>
         <div class="decision-card">
@@ -173,6 +258,11 @@ export const getSlashCommandToolSkills = memoize(async (cwd: string) =&gt; ...)<
           <h3>決策 4：回合中以訊號驅動，而非強制規則驅動</h3>
           <p><strong>原因：</strong>讓模型可根據當前任務選擇 skill 或一般工具，避免「每回合都硬套 skill」造成過度流程化。</p>
           <p><strong>代價：</strong>可預測性較低；要透過 listing/discovery/telemetry 來提升可觀測性，而不是靠單一硬規則。</p>
+        </div>
+        <div class="decision-card">
+          <h3>決策 5：把 shell 注入限制在特定 skill 來源</h3>
+          <p><strong>原因：</strong>本地 skill 與 MCP/remote skill 的信任邊界不同，不能同樣對待。</p>
+          <p><strong>代價：</strong>不同來源技能在「可執行能力」上行為不完全一致，文件需明確標注。</p>
         </div>
       </section>
 
@@ -233,6 +323,11 @@ export const getSlashCommandToolSkills = memoize(async (cwd: string) =&gt; ...)<
           <p><strong>症狀：</strong>觀察到附件中有 skills 訊號，就誤判功能一定走 skill 路徑，導致診斷方向錯誤。</p>
           <p><strong>防護：</strong>以 `SkillTool` 實際呼叫紀錄作為執行判據；附件訊號只當作候選與提示，不當作執行證據。</p>
         </div>
+        <div class="failure-case">
+          <h3>Failure 5：把「讀文件」誤判成「已執行 script」</h3>
+          <p><strong>症狀：</strong>看到模型用了 Read/Grep，就以為 skill 內 shell 片段也已經執行。</p>
+          <p><strong>防護：</strong>分開看兩類事件：工具讀檔事件 vs shell 注入執行事件，兩者要各自驗證。</p>
+        </div>
       </section>
 
       <section class="block" id="implementation">
@@ -242,6 +337,8 @@ export const getSlashCommandToolSkills = memoize(async (cwd: string) =&gt; ...)<
           <li>確認使用者路徑：`/skills` 相關敘述與 slash command 流程一致，未把 SkillTool 與 slash 流程混為一談。</li>
           <li>確認模型路徑：有清楚描述 validate/permission/context(inline,fork) 的先後順序。</li>
           <li>確認時機路徑：有明確區分 listing、discovery、SkillTool call 三層，且每層都有對應 src 位置。</li>
+          <li>確認讀/執行路徑：有清楚區分「讀 SKILL.md」「展開 skill」「Read/Grep 讀文件」「shell script 執行」。</li>
+          <li>確認案例段落：至少 4 個場景，且每個都有「是否執行 script」的明確判斷。</li>
           <li>確認導覽可從首頁、群組頁與側欄進入本頁，且 active page 高亮正確。</li>
           <li>確認本頁語言、術語與既有網站一致（台灣正體中文，避免外部推測性敘述）。</li>
         </ul>
