@@ -42,7 +42,7 @@ Content is written for progressive depth: start from fundamentals, then executio
 ```
 .
 ├── index.html           # Home page and chapter navigation hub
-├── pages/               # Chapter and group pages (includes Skills mechanism group/chapter)
+├── pages/               # Chapter pages (including the Skills mechanism chapter)
 ├── assets/
 │   ├── site.css         # Shared stylesheet
 │   └── site.js          # Shared scripts (depth-tab toggling, Mermaid, etc.)

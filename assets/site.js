@@ -1,21 +1,21 @@
 (function () {
   var NAV_ITEMS = [
     { page: 'home', label: '首頁', href: 'index.html' },
-    { page: 'g00', label: '架構總覽', href: 'pages/group-architecture.html' },
-    { page: 'g01', label: '啟動流程', href: 'pages/group-startup.html' },
-    { page: 'g02', label: '指令系統', href: 'pages/group-command-system.html' },
-    { page: 'g14', label: 'Skills 機制', href: 'pages/group-skills-system.html' },
-    { page: 'g03', label: '工具系統', href: 'pages/group-tool-system.html' },
-    { page: 'g04', label: '回合引擎', href: 'pages/group-query-engine.html' },
-    { page: 'g05', label: 'MCP 與服務', href: 'pages/group-services-mcp.html' },
-    { page: 'g06', label: '狀態與任務', href: 'pages/group-state-tasks.html' },
-    { page: 'g07', label: '模式與權限', href: 'pages/group-permissions-modes.html' },
-    { page: 'g08', label: '記憶系統', href: 'pages/group-memory-system.html' },
-    { page: 'g09', label: '代理與擴充', href: 'pages/group-agent-extension.html' },
-    { page: 'g10', label: '提示系統', href: 'pages/group-prompt-system.html' },
-    { page: 'g11', label: 'Hooks 與自動化', href: 'pages/group-hooks-automation.html' },
-    { page: 'g12', label: '終端 UI', href: 'pages/group-terminal-ui.html' },
-    { page: 'g13', label: '雷達與觀測', href: 'pages/group-radar.html' }
+    { page: 'g00', label: '架構總覽', href: 'pages/architecture-overview.html' },
+    { page: 'g01', label: '啟動流程', href: 'pages/quickstart.html' },
+    { page: 'g02', label: '指令系統', href: 'pages/command-system.html' },
+    { page: 'g14', label: 'Skills 機制', href: 'pages/skills-system.html' },
+    { page: 'g03', label: '工具系統', href: 'pages/tool-system.html' },
+    { page: 'g04', label: '回合引擎', href: 'pages/query-engine.html' },
+    { page: 'g05', label: 'MCP 與服務', href: 'pages/services-mcp.html' },
+    { page: 'g06', label: '狀態與任務', href: 'pages/state-tasks.html' },
+    { page: 'g07', label: '模式與權限', href: 'pages/permissions-modes.html' },
+    { page: 'g08', label: '記憶系統', href: 'pages/memory-system.html' },
+    { page: 'g09', label: '代理與擴充', href: 'pages/agent-and-extension.html' },
+    { page: 'g10', label: '提示系統', href: 'pages/prompt-system.html' },
+    { page: 'g11', label: 'Hooks 與自動化', href: 'pages/hooks-automation.html' },
+    { page: 'g12', label: '終端 UI', href: 'pages/terminal-ui.html' },
+    { page: 'g13', label: '雷達與觀測', href: 'pages/unreleased-features.html' }
   ];
 
   var GROUP_TO_CHILDREN = {
@@ -178,12 +178,21 @@
     nav.innerHTML = NAV_ITEMS.map(function (item) {
       var groupChildren;
       var chapterLinks;
+      var groupHref;
+      var groupIsActive;
       var detailsOpen;
       if (item.page === 'home') {
         return '<a class="book-nav-home' + (active === 'home' ? ' active"' : '"') + ' data-page="home" href="' + prefix + item.href + '">首頁</a>';
       }
 
       groupChildren = GROUP_TO_CHILDREN[item.page] || [];
+      groupHref = prefix + item.href;
+      groupIsActive = active === item.page;
+
+      if (groupChildren.length <= 1) {
+        return '<a data-page="' + item.page + '" href="' + groupHref + '" class="book-nav-group-link' + (groupIsActive ? ' active' : '') + '">' + item.label + '</a>';
+      }
+
       chapterLinks = groupChildren.map(function (childPage) {
         var meta = PAGE_META[childPage];
         var href = current === 'home' ? meta.href : meta.href.replace('pages/', '');
@@ -196,7 +205,6 @@
         '<details class="book-nav-group" data-group="' + item.page + '"' + detailsOpen + '>',
         '<summary class="book-nav-summary">' + item.label + '</summary>',
         '<div class="book-nav-children">',
-        '<a data-page="' + item.page + '" href="' + prefix + item.href + '" class="book-nav-group-link' + (current === item.page ? ' active' : '') + '">群組首頁</a>',
         chapterLinks,
         '</div>',
         '</details>'
@@ -294,18 +302,49 @@
 
     var left;
     var right;
+    var navGroups = NAV_ITEMS.filter(function (item) {
+      return item.page !== 'home';
+    });
+    var groupIndex = navGroups.findIndex(function (item) {
+      return item.page === groupKey;
+    });
+    var prevGroup = groupIndex > 0 ? navGroups[groupIndex - 1] : null;
+    var nextGroup = groupIndex >= 0 && groupIndex < navGroups.length - 1 ? navGroups[groupIndex + 1] : null;
+    var prevGroupSiblings;
+    var nextGroupSiblings;
+
     if (index > 0) {
       prevMeta = PAGE_META[siblings[index - 1]];
       left = '<a href="' + prevMeta.href.replace('pages/', '') + '"><span>← 上一頁：' + prevMeta.label + '</span></a>';
     } else {
-      left = '<a href="' + groupMeta.href.replace('pages/', '') + '"><span>← 回群組：' + groupMeta.label + '</span></a>';
+      if (prevGroup) {
+        prevGroupSiblings = GROUP_TO_CHILDREN[prevGroup.page] || [];
+        prevMeta = PAGE_META[prevGroupSiblings[prevGroupSiblings.length - 1]];
+        if (prevMeta) {
+          left = '<a href="' + prevMeta.href.replace('pages/', '') + '"><span>← 上一頁：' + prevMeta.label + '</span></a>';
+        } else {
+          left = '<a href="../index.html"><span>← 回首頁</span></a>';
+        }
+      } else {
+        left = '<a href="../index.html"><span>← 回首頁</span></a>';
+      }
     }
 
     if (index < siblings.length - 1) {
       nextMeta = PAGE_META[siblings[index + 1]];
       right = '<a href="' + nextMeta.href.replace('pages/', '') + '"><span>下一頁：' + nextMeta.label + ' →</span></a>';
     } else {
-      right = '<a href="' + groupMeta.href.replace('pages/', '') + '"><span>回群組：' + groupMeta.label + ' →</span></a>';
+      if (nextGroup) {
+        nextGroupSiblings = GROUP_TO_CHILDREN[nextGroup.page] || [];
+        nextMeta = PAGE_META[nextGroupSiblings[0]];
+        if (nextMeta) {
+          right = '<a href="' + nextMeta.href.replace('pages/', '') + '"><span>下一頁：' + nextMeta.label + ' →</span></a>';
+        } else {
+          right = '<a href="../index.html"><span>回首頁 →</span></a>';
+        }
+      } else {
+        right = '<a href="../index.html"><span>回首頁 →</span></a>';
+      }
     }
 
     pager.innerHTML = left + right;
