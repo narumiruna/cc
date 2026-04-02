@@ -4,6 +4,7 @@
     { page: 'g00', label: '架構總覽', href: 'pages/group-architecture.html' },
     { page: 'g01', label: '啟動流程', href: 'pages/group-startup.html' },
     { page: 'g02', label: '指令系統', href: 'pages/group-command-system.html' },
+    { page: 'g14', label: 'Skills 機制', href: 'pages/group-skills-system.html' },
     { page: 'g03', label: '工具系統', href: 'pages/group-tool-system.html' },
     { page: 'g04', label: '回合引擎', href: 'pages/group-query-engine.html' },
     { page: 'g05', label: 'MCP 與服務', href: 'pages/group-services-mcp.html' },
@@ -21,6 +22,7 @@
     g00: ['00'],
     g01: ['01', '02'],
     g02: ['03', '15'],
+    g14: ['18'],
     g03: ['04', '16', '17'],
     g04: ['05'],
     g05: ['06'],
@@ -40,6 +42,7 @@
     '02': 'g01',
     '03': 'g02',
     '15': 'g02',
+    '18': 'g14',
     '04': 'g03',
     '16': 'g03',
     '17': 'g03',
@@ -73,7 +76,8 @@
     '14': { label: '未開放功能雷達', href: 'pages/unreleased-features.html' },
     '15': { label: '內建 Commands', href: 'pages/commands-catalog.html' },
     '16': { label: '內建 Tools', href: 'pages/tools-catalog.html' },
-    '17': { label: '操作速查表', href: 'pages/ops-cheatsheet.html' }
+    '17': { label: '操作速查表', href: 'pages/ops-cheatsheet.html' },
+    '18': { label: 'Skills 機制', href: 'pages/skills-system.html' }
   };
 
   function getCurrentPage() {

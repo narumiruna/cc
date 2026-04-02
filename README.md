@@ -8,7 +8,7 @@ Visit the tutorial at **https://narumiruna.github.io/cc/**
 
 ## Overview
 
-This site walks through Claude Code's architecture across ten chapters, each following a consistent six-section template:
+This site walks through Claude Code's architecture through grouped modules and topic chapters, each following a consistent six-section template:
 
 | Section | Purpose |
 |---|---|
@@ -19,11 +19,7 @@ This site walks through Claude Code's architecture across ten chapters, each fol
 | **失敗路徑** | Common error scenarios and recovery mechanisms |
 | **實作驗證** | Actionable checklists to verify understanding |
 
-Every chapter tags content with three depth levels so readers can choose their engagement:
-
-- **L1 入門** — 90-second concept overview, ideal for first-time readers
-- **L2 實務** — execution paths, code snippets, and hands-on details
-- **L3 原理** — design trade-offs, alternative comparisons, and failure-path analysis
+Content is written for progressive depth: start from fundamentals, then execution paths, then trade-offs and failure modes.
 
 ## Chapters
 
@@ -32,6 +28,7 @@ Every chapter tags content with three depth levels so readers can choose their e
 | 1 | 快速起步 | Bird's-eye view of core modules and their relationships |
 | 2 | 啟動流程 | CLI entry point to interactive mode boot sequence |
 | 3 | 指令系統 | Slash command registration, parsing, and dispatch |
+| 18 | Skills 機制（Special Topic） | Skill loading, discovery, invocation paths, and permission boundaries |
 | 4 | 工具系統 | Tool contract, assembly, and permission gating |
 | 5 | 回合引擎 | Full turn lifecycle from submit to completion |
 | 6 | 服務與 MCP | External service integration via Model Context Protocol |
@@ -45,7 +42,7 @@ Every chapter tags content with three depth levels so readers can choose their e
 ```
 .
 ├── index.html           # Home page and chapter navigation hub
-├── pages/               # One HTML file per chapter (01–10)
+├── pages/               # Chapter and group pages (includes Skills mechanism group/chapter)
 ├── assets/
 │   ├── site.css         # Shared stylesheet
 │   └── site.js          # Shared scripts (depth-tab toggling, Mermaid, etc.)
