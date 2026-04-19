@@ -4,7 +4,7 @@ A multi-depth tutorial site for the internal architecture of [Claude Code](https
 
 ## Live Site
 
-Visit the tutorial at **https://narumiruna.github.io/cc/**
+Visit the tutorial at **https://narumiruna.github.io/claude-code-arch/**
 
 ## Overview
 
